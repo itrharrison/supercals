@@ -50,6 +50,12 @@ def runSuperCal(config):
   # load residual image
   residual_image = fits.getdata('/local/scratch/harrison/supercal/1024+6812_4day_natw-residual.fits')[0,0]
   clean_image = fits.getdata('/local/scratch/harrison/supercal/1024+6812_4day_natw-image.fits')[0,0]
+
+  # get the beam information
+  clean_image_header = fits.getheader('/local/scratch/harrison/supercal/1024+6812_4day_natw-image.fits')
+  bmaj = clean_image_header['BMAJ']*galsim.degrees
+  bmin = clean_image_header['BIN']*galsim.degrees
+  bpa = clean_image_header['BPA']*galsim.degrees
   
   residual_image = galsim.Image(residual_image)
   clean_image = galsim.Image(clean_image)
@@ -97,7 +103,9 @@ def runSuperCal(config):
           
           gal = gal.shear(total_shear)
           
-          psf = galsim.Gaussian(0.02) # *PROBABLY* the clean beam PSF?
+          psf = galsim.Gaussian(fwhm=bmaj) # *PROBABLY* the clean beam PSF?
+          psf_ellipticity = galsim.Shear(q=bmin/bmaj, beta=bpa)
+          psf = psf.shear(psf_ellipticity)
           
           obsgal = galsim.Convolve([gal, psf])
           
