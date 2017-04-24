@@ -16,6 +16,12 @@ from skymodel.skymodel_tools import setup_wcs
 from matplotlib import pyplot as plt
 plt.close('all')
 
+def get_stamp_size(source, pixel_scale):
+
+  stamp_size = 3.* source['size']*galsim.arcsec / pixel_scale
+
+  return stamp_size
+
 def runSuperCal(config):
   im3dir = config.get('im3shape', 'install_directory')
 
@@ -26,9 +32,9 @@ def runSuperCal(config):
   
   options = Options("i3_options.ini")
 
-  n_shears = 1
-  n_orientations = 8
-  n_ellipticities = 15
+  n_shears = config.getint('ring','n_shears') # 1
+  n_orientations = config.getint('ring','n_orientations') # 8
+  n_ellipticities = config.getint('ring','n_ellipticities') # 15
 
   pixel_scale = config.getfloat('skymodel', 'pixel_scale')*galsim.arcsec
   fov = config.getfloat('skymodel', 'field_of_view')*galsim.arcmin
@@ -41,18 +47,20 @@ def runSuperCal(config):
   w_twod = setup_wcs(config, ndim=2)
   header_twod = w_twod.to_header()
   
-  full_image = galsim.ImageF(16384, 16384, scale=pixel_scale)
+  full_image = galsim.ImageF(image_size, image_size, scale=pixel_scale)
   im_center = full_image.bounds.trueCenter()
 
   # Create a WCS for the galsim image
   full_image.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
 
   # load residual image
-  residual_image = fits.getdata('/local/scratch/harrison/supercal/1024+6812_4day_natw-residual.fits')[0,0]
-  clean_image = fits.getdata('/local/scratch/harrison/supercal/1024+6812_4day_natw-image.fits')[0,0]
+  residual_fname = config.get('input', 'residual_image')
+  clean_fname = config.get('input', 'clean_image')
+  residual_image = fits.getdata(residual_fname)[0,0]
+  clean_image = fits.getdata(clean_fname)[0,0]
 
   # get the beam information
-  clean_image_header = fits.getheader('/local/scratch/harrison/supercal/1024+6812_4day_natw-image.fits')
+  clean_image_header = fits.getheader(clean_fname)
   bmaj = clean_image_header['BMAJ']*galsim.degrees
   bmin = clean_image_header['BIN']*galsim.degrees
   bpa = clean_image_header['BPA']*galsim.degrees
@@ -65,7 +73,7 @@ def runSuperCal(config):
   orientations = np.linspace(0.e0, np.pi, n_orientations)
   ellipticities = np.linspace(0.e0, 0.7, n_ellipticities)
   ellipticities = ellipticities[::-1]
-  shears = [0]
+  shears = np.linspace(0.e0, 0.7, n_shears)
   shear_theta = 0.e0
   
   g_1meas = np.empty([len(cat), n_shears, n_ellipticities])
@@ -79,17 +87,11 @@ def runSuperCal(config):
   idx=0
 
   for source_i, source in enumerate(cat):
-    savdata = {'e1_in' : e1_in_arr,
-               'e2_in' : e2_in_arr,
-               'e1_out' : e1_out_arr,
-               'e2_out' : e2_out_arr}
-    pickle.dump(savdata, open('savdata.p', 'wb'))
-    pdb.set_trace()
     for g_i, mod_g in enumerate(shears):
       for e_i, mod_e in enumerate(ellipticities):
         for o_i, theta in enumerate(orientations-1):
           
-          gal = galsim.Exponential(scale_radius=0.5/3, flux=0.057988361)
+          gal = galsim.Exponential(scale_radius=source['size']*galsim.arcsec, flux=source['integrated_flux'])
           
           e1 = mod_e*np.cos(2.*theta)
           e2 = mod_e*np.sin(2.*theta)
@@ -109,12 +111,10 @@ def runSuperCal(config):
           
           obsgal = galsim.Convolve([gal, psf])
           
-          x, y = w_twod.wcs_world2pix(source['RA'], source['DEC'], 0,)
+          x, y = w_twod.wcs_world2pix(source['ra_abs'], source['dec_abs'], 0,)
           x = float(x)
           y = float(y)
           
-          y = 9930
-          x = 13462
           
           # Account for the fractional part of the position:
           ix = int(np.floor(x+0.5))
@@ -122,8 +122,9 @@ def runSuperCal(config):
           offset = galsim.PositionD(x-ix, y-iy)
           
           # Create the sub-image for this galaxy
-          stamp = obsgal.drawImage(nx=84, ny=84, scale=pixel_scale/galsim.arcsec, offset=offset)
-          psf_stamp = psf.drawImage(nx=84, ny=84, scale=pixel_scale/galsim.arcsec, offset=offset)
+          stamp_size = get_stamp_size(source)
+          stamp = obsgal.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
+          psf_stamp = psf.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
           
           stamp.setCenter(ix, iy)
           psf_stamp.setCenter(ix, iy)
