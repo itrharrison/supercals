@@ -6,6 +6,7 @@ import cPickle as pickle
 
 from astropy.io import fits
 from astropy.table import Table
+from astropy import wcs
 
 import galsim
 
@@ -18,7 +19,7 @@ plt.close('all')
 
 def get_stamp_size(source, pixel_scale):
 
-  stamp_size = 3.* source['size']*galsim.arcsec / pixel_scale
+  stamp_size = 3.* (source['size'] / galsim.arcsec) / (pixel_scale / galsim.arcsec)
 
   return stamp_size
 
@@ -35,27 +36,15 @@ def runSuperCal(config):
   n_shears = config.getint('ring','n_shears') # 1
   n_orientations = config.getint('ring','n_orientations') # 8
   n_ellipticities = config.getint('ring','n_ellipticities') # 15
-
-  pixel_scale = config.getfloat('skymodel', 'pixel_scale')*galsim.arcsec
-  fov = config.getfloat('skymodel', 'field_of_view')*galsim.arcmin
-  image_size = int((fov/galsim.arcmin)/(pixel_scale/galsim.arcmin))
   
   # load catalogue positions
   cat = Table.read(config.get('input', 'catalogue'), format='fits')
-  if config.get('input', 'catalogue_origin')==pybdsm:
+  if config.get('input', 'catalogue_origin')=='pybdsm':
     cat['ra_abs'] = cat['RA']
     cat['dec_abs']= cat['DEC']
+    cat['size'] = cat['Maj'] * galsim.degrees
+    cat['integrated_flux'] = cat['Total_flux']
   
-  # set up wcs
-  w_twod = setup_wcs(config, ndim=2)
-  header_twod = w_twod.to_header()
-  
-  full_image = galsim.ImageF(image_size, image_size, scale=pixel_scale)
-  im_center = full_image.bounds.trueCenter()
-
-  # Create a WCS for the galsim image
-  full_image.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
-
   # load residual image
   residual_fname = config.get('input', 'residual_image')
   clean_fname = config.get('input', 'clean_image')
@@ -65,8 +54,30 @@ def runSuperCal(config):
   # get the beam information
   clean_image_header = fits.getheader(clean_fname)
   bmaj = clean_image_header['BMAJ']*galsim.degrees
-  bmin = clean_image_header['BIN']*galsim.degrees
+  bmin = clean_image_header['BMIN']*galsim.degrees
   bpa = clean_image_header['BPA']*galsim.degrees
+  
+  # set up wcs
+  #w_twod = setup_wcs(config, ndim=2)
+  w_fourd = wcs.WCS(config.get('input', 'clean_image'))
+  w_twod = w_fourd.dropaxis(3).dropaxis(2)
+  header_twod = w_twod.to_header()
+  
+  pixel_scale = abs(header_twod['CDELT1'])*galsim.degrees
+  image_size = clean_image.shape[0]
+  
+  '''
+  pixel_scale = config.getfloat('skymodel', 'pixel_scale')*galsim.arcsec
+  fov = config.getfloat('skymodel', 'field_of_view')*galsim.arcmin
+  image_size = int((fov/galsim.arcmin)/(pixel_scale/galsim.arcmin))
+  '''
+  
+  full_image = galsim.ImageF(image_size, image_size, scale=pixel_scale)
+  im_center = full_image.bounds.trueCenter()
+
+  # Create a WCS for the galsim image
+  full_image.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
+
   
   residual_image = galsim.Image(residual_image)
   clean_image = galsim.Image(clean_image)
@@ -94,7 +105,7 @@ def runSuperCal(config):
       for e_i, mod_e in enumerate(ellipticities):
         for o_i, theta in enumerate(orientations-1):
           
-          gal = galsim.Exponential(scale_radius=source['size']*galsim.arcsec, flux=source['integrated_flux'])
+          gal = galsim.Exponential(scale_radius=source['size']/galsim.arcsec, flux=source['integrated_flux'])
           
           e1 = mod_e*np.cos(2.*theta)
           e2 = mod_e*np.sin(2.*theta)
@@ -108,8 +119,8 @@ def runSuperCal(config):
           
           gal = gal.shear(total_shear)
           
-          psf = galsim.Gaussian(fwhm=bmaj) # *PROBABLY* the clean beam PSF?
-          psf_ellipticity = galsim.Shear(q=bmin/bmaj, beta=bpa)
+          psf = galsim.Gaussian(fwhm=bmaj/galsim.arcsec) # *PROBABLY* the clean beam PSF?
+          psf_ellipticity = galsim.Shear(q=(bmin/galsim.arcsec)/(bmaj/galsim.arcsec), beta=bpa)
           psf = psf.shear(psf_ellipticity)
           
           obsgal = galsim.Convolve([gal, psf])
@@ -125,7 +136,7 @@ def runSuperCal(config):
           offset = galsim.PositionD(x-ix, y-iy)
           
           # Create the sub-image for this galaxy
-          stamp_size = get_stamp_size(source)
+          stamp_size = get_stamp_size(source, pixel_scale)
           stamp = obsgal.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
           psf_stamp = psf.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
           
