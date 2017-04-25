@@ -30,7 +30,7 @@ def runSuperCal(config):
   from py3shape.analyze import analyze, count_varied_params
   from py3shape.options import Options
   
-  options = Options("i3_options.ini")
+  options = Options(config.get('im3shape', 'ini_file'))
 
   n_shears = config.getint('ring','n_shears') # 1
   n_orientations = config.getint('ring','n_orientations') # 8
@@ -41,7 +41,10 @@ def runSuperCal(config):
   image_size = int((fov/galsim.arcmin)/(pixel_scale/galsim.arcmin))
   
   # load catalogue positions
-  cat = Table.read(config.get('catalogue', 'filename'), format='fits')  
+  cat = Table.read(config.get('input', 'catalogue'), format='fits')
+  if config.get('input', 'catalogue_origin')==pybdsm:
+    cat['ra_abs'] = cat['RA']
+    cat['dec_abs']= cat['DEC']
   
   # set up wcs
   w_twod = setup_wcs(config, ndim=2)
@@ -150,7 +153,7 @@ def runSuperCal(config):
           plt.imshow(stamp.array + full_image[bounds].array, cmap='afmhot', interpolation='nearest')
           plt.title('Model + Residual')
           plt.axis('off')
-          plt.savefig('rot_{0}.png'.format(o_i), dpi=160, bbox_inches='tight')
+          plt.savefig('plots/rot_{0}.png'.format(o_i), dpi=160, bbox_inches='tight')
           '''
           
           stamp[bounds] += full_image[bounds]
