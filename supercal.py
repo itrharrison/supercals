@@ -19,7 +19,7 @@ plt.close('all')
 
 def get_stamp_size(source, pixel_scale):
 
-  stamp_size = 3.* (source['size'] / galsim.arcsec) / (pixel_scale / galsim.arcsec)
+  stamp_size = 10.* (source['size'] / galsim.arcsec) / (pixel_scale / galsim.arcsec)
 
   return stamp_size
 
@@ -137,6 +137,11 @@ def runSuperCal(config):
           
           # Create the sub-image for this galaxy
           stamp_size = get_stamp_size(source, pixel_scale)
+          options['stamp_size'] = stamp_size
+          options['sersics_x0_start'] = stamp_size/2
+          options['sersics_y0_start'] = stamp_size/2
+          options['sersics_x0_max'] = stamp_size
+          options['sersics_y0_max'] = stamp_size
           stamp = obsgal.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
           psf_stamp = psf.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
           
