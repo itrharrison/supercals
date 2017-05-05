@@ -194,6 +194,8 @@ def runSuperCal(config):
 
         g_1meas[source_i, g_i, e_i] = g_1meas[source_i, g_i, e_i]/n_orientations
         g_2meas[source_i, g_i, e_i] = g_2meas[source_i, g_i, e_i]/n_orientations
+        
+        pickle.dump({'g1' : g_1meas, 'g2' : g_2meas}, open('supercal_g1g2.p', 'wb'))
 
 if __name__ == '__main__':
   config = ConfigParser.ConfigParser()
