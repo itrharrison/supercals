@@ -39,6 +39,7 @@ def runSuperCal(config):
   
   # load catalogue positions
   cat = Table.read(config.get('input', 'catalogue'), format='fits')
+
   if config.get('input', 'catalogue_origin')=='pybdsm':
     cat['ra_abs'] = cat['RA']
     cat['dec_abs']= cat['DEC']
@@ -101,6 +102,7 @@ def runSuperCal(config):
   idx=0
 
   for source_i, source in enumerate(cat):
+    output_cat = Table(names=('mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1', 'g2', 'e1', 'e2', 'e1_obs', 'e2_obs'))
     for g_i, mod_g in enumerate(shears):
       for e_i, mod_e in enumerate(ellipticities):
         for o_i, theta in enumerate(orientations-1):
@@ -177,25 +179,31 @@ def runSuperCal(config):
           # Measure the shear with im3shape
           result, best_fit = analyze(stamp.array, psf_stamp.array, options, weight=weight, ID=idx)
           result = result.as_dict(0, count_varied_params(options))
-          g_1meas[source_i, g_i, e_i] += result[0]['e1']
-          g_2meas[source_i, g_i, e_i] += result[0]['e2']
+          e1_obs = result[0]['e1']
+          e2_obs = result[0]['e2']
+
+          output_cat.add_row(mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs)
+
+          #g_1meas[source_i, g_i, e_i] += result[0]['e1']
+          #g_2meas[source_i, g_i, e_i] += result[0]['e2']
           
-          print(e1, result[0]['e1'])
-          print(e2, result[0]['e2'])
+          #print(e1, result[0]['e1'])
+          #print(e2, result[0]['e2'])
           
-          e1_out_arr = np.append(e1_out_arr,result[0]['e1'])
-          e2_out_arr = np.append(e2_out_arr,result[0]['e2'])
+          #e1_out_arr = np.append(e1_out_arr,result[0]['e1'])
+          #e2_out_arr = np.append(e2_out_arr,result[0]['e2'])
           
-          e1_in_arr = np.append(e1_in_arr, e1)
-          e2_in_arr = np.append(e2_in_arr, e2)
+          #e1_in_arr = np.append(e1_in_arr, e1)
+          #e2_in_arr = np.append(e2_in_arr, e2)
           
           
           idx += 1
 
-        g_1meas[source_i, g_i, e_i] = g_1meas[source_i, g_i, e_i]/n_orientations
-        g_2meas[source_i, g_i, e_i] = g_2meas[source_i, g_i, e_i]/n_orientations
+        #g_1meas[source_i, g_i, e_i] = g_1meas[source_i, g_i, e_i]/n_orientations
+        #g_2meas[source_i, g_i, e_i] = g_2meas[source_i, g_i, e_i]/n_orientations
         
-        pickle.dump({'g1' : g_1meas, 'g2' : g_2meas}, open('supercal_g1g2.p', 'wb'))
+        #pickle.dump({'g1' : g_1meas, 'g2' : g_2meas}, open('supercal_g1g2.p', 'wb'))
+        output_cat.write('{0}-{1}_supercal_output.txt'.format(cat['ra_abs'], cat['dec_abs']), format='ascii')
 
 if __name__ == '__main__':
   config = ConfigParser.ConfigParser()
