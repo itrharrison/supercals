@@ -105,7 +105,7 @@ def runSuperCal(config):
     output_cat = Table(names=('mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1', 'g2', 'e1', 'e2', 'e1_obs', 'e2_obs'))
     for g_i, mod_g in enumerate(shears):
       for e_i, mod_e in enumerate(ellipticities):
-        for o_i, theta in enumerate(orientations-1):
+        for o_i, theta in enumerate(orientations):
           
           gal = galsim.Exponential(scale_radius=source['size']/galsim.arcsec, flux=source['integrated_flux'])
           
@@ -150,6 +150,9 @@ def runSuperCal(config):
           stamp.setCenter(ix, iy)
           psf_stamp.setCenter(ix, iy)
           
+          flux_correction = source['Peak_flux']/stamp.array.max()
+          stamp = stamp*flux_correction
+          
           # Add the flux from the residual image to the sub-image
           bounds = stamp.bounds & full_image.bounds
           
@@ -173,7 +176,6 @@ def runSuperCal(config):
           plt.axis('off')
           plt.savefig('plots/rot_{0}.png'.format(o_i), dpi=160, bbox_inches='tight')
           '''
-          
           stamp[bounds] += full_image[bounds]
           weight = np.ones_like(stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
@@ -181,13 +183,13 @@ def runSuperCal(config):
           result = result.as_dict(0, count_varied_params(options))
           e1_obs = result[0]['e1']
           e2_obs = result[0]['e2']
-
-          output_cat.add_row(mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs)
+          
+          output_cat.add_row([mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs])
 
           #g_1meas[source_i, g_i, e_i] += result[0]['e1']
           #g_2meas[source_i, g_i, e_i] += result[0]['e2']
           
-          #print(e1, result[0]['e1'])
+          print(source['Source_id'], e1, result[0]['e1'])
           #print(e2, result[0]['e2'])
           
           #e1_out_arr = np.append(e1_out_arr,result[0]['e1'])
@@ -203,7 +205,7 @@ def runSuperCal(config):
         #g_2meas[source_i, g_i, e_i] = g_2meas[source_i, g_i, e_i]/n_orientations
         
         #pickle.dump({'g1' : g_1meas, 'g2' : g_2meas}, open('supercal_g1g2.p', 'wb'))
-        output_cat.write('{0}-{1}_supercal_output.txt'.format(cat['ra_abs'], cat['dec_abs']), format='ascii')
+    output_cat.write('{0}_supercal_output.txt'.format(source['Source_id']), format='ascii')
 
 if __name__ == '__main__':
   config = ConfigParser.ConfigParser()
