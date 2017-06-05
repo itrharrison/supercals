@@ -8,6 +8,8 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy import wcs
 
+from tqdm import tqdm
+
 import galsim
 
 sys.path.append('../simuCLASS')
@@ -40,12 +42,6 @@ def runSuperCal(config):
   # load catalogue positions
   cat = Table.read(config.get('input', 'catalogue'), format='fits')
 
-  if config.get('input', 'catalogue_origin')=='pybdsm':
-    cat['ra_abs'] = cat['RA']
-    cat['dec_abs']= cat['DEC']
-    cat['size'] = cat['Maj'] * galsim.degrees
-    cat['integrated_flux'] = cat['Total_flux']
-  
   # load residual image
   residual_fname = config.get('input', 'residual_image')
   clean_fname = config.get('input', 'clean_image')
@@ -67,19 +63,12 @@ def runSuperCal(config):
   pixel_scale = abs(header_twod['CDELT1'])*galsim.degrees
   image_size = clean_image.shape[0]
   
-  '''
-  pixel_scale = config.getfloat('skymodel', 'pixel_scale')*galsim.arcsec
-  fov = config.getfloat('skymodel', 'field_of_view')*galsim.arcmin
-  image_size = int((fov/galsim.arcmin)/(pixel_scale/galsim.arcmin))
-  '''
-  
   full_image = galsim.ImageF(image_size, image_size, scale=pixel_scale)
   im_center = full_image.bounds.trueCenter()
 
   # Create a WCS for the galsim image
   full_image.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
 
-  
   residual_image = galsim.Image(residual_image)
   clean_image = galsim.Image(clean_image)
 
@@ -102,12 +91,15 @@ def runSuperCal(config):
   idx=0
 
   for source_i, source in enumerate(cat):
-    output_cat = Table(names=('mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1', 'g2', 'e1', 'e2', 'e1_obs', 'e2_obs'))
+    output_cat = Table(names=('mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp', 'e1', 'e1'))
+    output_cat['theta_g'].unit = 'rad'
+    output_cat['theta_e'].unit = 'rad'
+    pbar = tqdm(total=n_shears*n_ellipticities*n_ellipticities, ascii=True, desc='Source {0}/{1}'.format(source_i, len(cat)))
     for g_i, mod_g in enumerate(shears):
       for e_i, mod_e in enumerate(ellipticities):
         for o_i, theta in enumerate(orientations):
           
-          gal = galsim.Exponential(scale_radius=source['size']/galsim.arcsec, flux=source['integrated_flux'])
+          gal = galsim.Exponential(scale_radius=source['Maj']*galsim.degrees/galsim.arcsec, flux=source['Total_flux'])
           
           e1 = mod_e*np.cos(2.*theta)
           e2 = mod_e*np.sin(2.*theta)
@@ -127,7 +119,7 @@ def runSuperCal(config):
           
           obsgal = galsim.Convolve([gal, psf])
           
-          x, y = w_twod.wcs_world2pix(source['ra_abs'], source['dec_abs'], 0,)
+          x, y = w_twod.wcs_world2pix(source['RA'], source['DEC'], 0,)
           x = float(x)
           y = float(y)
           
@@ -156,26 +148,26 @@ def runSuperCal(config):
           # Add the flux from the residual image to the sub-image
           bounds = stamp.bounds & full_image.bounds
           
-          '''
-          plt.figure(1)
-          plt.subplot(141)
-          plt.imshow(clean_image[bounds].array, cmap='afmhot', interpolation='nearest')
-          plt.title('CLEAN')
-          plt.axis('off')
-          plt.subplot(142)
-          plt.imshow(full_image[bounds].array, cmap='afmhot', interpolation='nearest')
-          plt.title('Residual')
-          plt.axis('off')
-          plt.subplot(143)
-          plt.imshow(stamp.array, cmap='afmhot', interpolation='nearest')
-          plt.title('Model')
-          plt.axis('off')
-          plt.subplot(144)
-          plt.imshow(stamp.array + full_image[bounds].array, cmap='afmhot', interpolation='nearest')
-          plt.title('Model + Residual')
-          plt.axis('off')
-          plt.savefig('plots/rot_{0}.png'.format(o_i), dpi=160, bbox_inches='tight')
-          '''
+          if config.get('ring', 'doplots') and g_i==1:
+            plt.figure(1)
+            plt.subplot(141)
+            plt.imshow(clean_image[bounds].array, cmap='afmhot', interpolation='nearest')
+            plt.title('CLEAN')
+            plt.axis('off')
+            plt.subplot(142)
+            plt.imshow(full_image[bounds].array, cmap='afmhot', interpolation='nearest')
+            plt.title('Residual')
+            plt.axis('off')
+            plt.subplot(143)
+            plt.imshow(stamp.array, cmap='afmhot', interpolation='nearest')
+            plt.title('Model')
+            plt.axis('off')
+            plt.subplot(144)
+            plt.imshow(stamp.array + full_image[bounds].array, cmap='afmhot', interpolation='nearest')
+            plt.title('Model + Residual')
+            plt.axis('off')
+            plt.savefig('plots/source_{0}.png'.format(source_i), dpi=160, bbox_inches='tight')
+
           stamp[bounds] += full_image[bounds]
           weight = np.ones_like(stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
@@ -185,27 +177,14 @@ def runSuperCal(config):
           e2_obs = result[0]['e2']
           
           output_cat.add_row([mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs])
-
-          #g_1meas[source_i, g_i, e_i] += result[0]['e1']
-          #g_2meas[source_i, g_i, e_i] += result[0]['e2']
           
-          print(source['Source_id'], e1, result[0]['e1'])
-          #print(e2, result[0]['e2'])
-          
-          #e1_out_arr = np.append(e1_out_arr,result[0]['e1'])
-          #e2_out_arr = np.append(e2_out_arr,result[0]['e2'])
-          
-          #e1_in_arr = np.append(e1_in_arr, e1)
-          #e2_in_arr = np.append(e2_in_arr, e2)
-          
+          #print(source['Source_id'], e1, result[0]['e1'])
+          pbar.updat(1)
           
           idx += 1
 
-        #g_1meas[source_i, g_i, e_i] = g_1meas[source_i, g_i, e_i]/n_orientations
-        #g_2meas[source_i, g_i, e_i] = g_2meas[source_i, g_i, e_i]/n_orientations
-        
-        #pickle.dump({'g1' : g_1meas, 'g2' : g_2meas}, open('supercal_g1g2.p', 'wb'))
-    output_cat.write('{0}_supercal_output.txt'.format(source['Source_id']), format='ascii')
+    output_cat.write('{0}_supercal_output.fits'.format(source['Source_id']), format='fits')
+    pbar.close()
 
 if __name__ == '__main__':
   config = ConfigParser.ConfigParser()
