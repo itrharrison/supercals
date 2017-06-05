@@ -103,10 +103,10 @@ def runSuperCal(config):
     print('e1_in\te1_out\t||\te2_in\te2_out')
     print('----------------||--------------------')
     for g_i, mod_g in enumerate(shears):
-      print('|g|: '+('%.2f' % mod_g)+'       ||')
+      print('Source: {0}/{1}, g: '.format(source_i, len(cat))+('%.2f' % mod_g))
       print('----------------||--------------------')
       for e_i, mod_e in enumerate(ellipticities):
-        print('|e|: '+('%.2f' % mod_e)+'       ||')
+        print('Source: {0}/{1}, g: '.format(source_i, len(cat))+('%.2f' % mod_g)+', e: '+('%.2f' % mod_e))
         print('----------------||--------------------')
         for o_i, theta in enumerate(orientations):
           
@@ -214,7 +214,7 @@ def runSuperCal(config):
     fits.setval(cat_fname, 'BPA', value = bpa / galsim.degrees)
     fits.setval(cat_fname, 'TIME_TAKEN', value = t_sourceend - t_sourcestart)
     
-    print('Source {0} finished in '.format(source_i)+('%.2f seconds.' % t_sourceend - t_sourcestart))
+    print('Source {0} finished in '.format(source_i)+('%.2f seconds.' % (t_sourceend - t_sourcestart)))
     print('--------------------------------------')
     
 if __name__ == '__main__':
