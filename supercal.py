@@ -91,7 +91,7 @@ def runSuperCal(config):
 
   for source_i, source in enumerate(cat):
     t_sourcestart = time.time()
-    output_cat = Table(names=('mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp', 'e1', 'e2'))
+    output_cat = Table(names=('mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp', 'e1', 'e2', 'radius', 'snr', 'disc_A'))
     output_cat['theta_g'].unit = 'rad'
     output_cat['theta_e'].unit = 'rad'
     print('######################################')
@@ -186,16 +186,36 @@ def runSuperCal(config):
           result = result.as_dict(0, count_varied_params(options))
           e1_obs = result[0]['e1']
           e2_obs = result[0]['e2']
+          radius = result[0]['radius']
+          snr = result[0]['snr']
+          disc_A = result[0]['disc_A']
           
-          output_cat.add_row([mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs])
+          output_cat.add_row([mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs, radius, snr, disc_A])
           
           print(('%.3f' % e1)+'\t'+('%.3f' % e1_obs)+'\t||\t'+('%.3f' % e2)+'\t'+('%.3f' % e2_obs))
           
           idx += 1
         print('----------------||--------------------')
-
-    output_cat.write('{0}_supercal_output.fits'.format(source['Source_id']), format='fits', overwrite=True)
+    
+    
     t_sourceend = time.time()
+    hdr = fits.Header()
+    hdr['SOURCE_ID'] = source['Source_id']
+    hdr['RA'] = source['RA']
+    hdr['DEC'] = source['DEC']
+    hdr['TOTAL_FLUX'] = source['Total_flux']
+    hdr['MAJ'] = source['Maj']
+    hdr['MIN'] = source['Min']
+    hdr['PA'] = source['PA']
+    hdr['BMAJ'] = bmaj / galsim.degrees
+    hdr['BMIN'] = bmin / galsim.degrees
+    hdr['BPA'] = bpa / galsim.degrees
+    hdr['TIME_TAKEN'] = t_sourceend - t_sourcestart    
+    
+    output_cat.write('{0}_supercal_output.fits'.format(source['Source_id']), format='fits', overwrite=True)
+    
+    pdb.set_trace()
+    
     print('Source {0} finished in {1} seconds.'.format(source_i, t_sourceend - t_sourcestart))
     print('--------------------------------------')
     
