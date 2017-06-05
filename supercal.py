@@ -2,13 +2,12 @@ import pdb
 import ConfigParser
 import numpy as np
 import sys
+import time
 import cPickle as pickle
 
 from astropy.io import fits
 from astropy.table import Table
 from astropy import wcs
-
-from tqdm import tqdm
 
 import galsim
 
@@ -21,7 +20,7 @@ plt.close('all')
 
 def get_stamp_size(source, pixel_scale):
 
-  stamp_size = 10.* (source['size'] / galsim.arcsec) / (pixel_scale / galsim.arcsec)
+  stamp_size = 10.* (source['Maj']*galsim.degrees / galsim.arcsec) / (pixel_scale / galsim.arcsec)
 
   return stamp_size
 
@@ -91,12 +90,24 @@ def runSuperCal(config):
   idx=0
 
   for source_i, source in enumerate(cat):
-    output_cat = Table(names=('mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp', 'e1', 'e1'))
+    t_sourcestart = time.time()
+    output_cat = Table(names=('mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp', 'e1', 'e2'))
     output_cat['theta_g'].unit = 'rad'
     output_cat['theta_e'].unit = 'rad'
-    pbar = tqdm(total=n_shears*n_ellipticities*n_ellipticities, ascii=True, desc='Source {0}/{1}'.format(source_i, len(cat)))
+    print('######################################')
+    print('Source {0}/{1}:'.format(source_i, len(cat)))
+    print('RA: {0}, DEC: {1}'.format(source['RA'], source['DEC']))
+    print('Flux: '+('%.3e' % source['Total_flux'])+' Jy')
+    print('Size: {0} arcsec'.format(source['Maj']*galsim.degrees/galsim.arcsec))
+    print('######################################')
+    print('e1_in\te1_out\t||\te2_in\te2_out')
+    print('----------------||--------------------')
     for g_i, mod_g in enumerate(shears):
+      print('|g|: '+('%.2f' % mod_g)+'       ||')
+      print('----------------||--------------------')
       for e_i, mod_e in enumerate(ellipticities):
+        print('|e|: '+('%.2f' % mod_e)+'       ||')
+        print('----------------||--------------------')
         for o_i, theta in enumerate(orientations):
           
           gal = galsim.Exponential(scale_radius=source['Maj']*galsim.degrees/galsim.arcsec, flux=source['Total_flux'])
@@ -167,7 +178,7 @@ def runSuperCal(config):
             plt.title('Model + Residual')
             plt.axis('off')
             plt.savefig('plots/source_{0}.png'.format(source_i), dpi=160, bbox_inches='tight')
-
+          
           stamp[bounds] += full_image[bounds]
           weight = np.ones_like(stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
@@ -178,14 +189,16 @@ def runSuperCal(config):
           
           output_cat.add_row([mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs])
           
-          #print(source['Source_id'], e1, result[0]['e1'])
-          pbar.updat(1)
+          print(('%.3f' % e1)+'\t'+('%.3f' % e1_obs)+'\t||\t'+('%.3f' % e2)+'\t'+('%.3f' % e2_obs))
           
           idx += 1
+        print('----------------||--------------------')
 
-    output_cat.write('{0}_supercal_output.fits'.format(source['Source_id']), format='fits')
-    pbar.close()
-
+    output_cat.write('{0}_supercal_output.fits'.format(source['Source_id']), format='fits', overwrite=True)
+    t_sourceend = time.time()
+    print('Source {0} finished in {1} seconds.'.format(source_i, t_sourceend - t_sourcestart))
+    print('--------------------------------------')
+    
 if __name__ == '__main__':
   config = ConfigParser.ConfigParser()
   config.read(sys.argv[-1])
