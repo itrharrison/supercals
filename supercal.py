@@ -196,27 +196,25 @@ def runSuperCal(config):
           
           idx += 1
         print('----------------||--------------------')
-    
+  
+    cat_fname = '{0}_supercal_output.fits'.format(source['Source_id'])
+    output_cat.write(cat_fname, format='fits', overwrite=True)
     
     t_sourceend = time.time()
-    hdr = fits.Header()
-    hdr['SOURCE_ID'] = source['Source_id']
-    hdr['RA'] = source['RA']
-    hdr['DEC'] = source['DEC']
-    hdr['TOTAL_FLUX'] = source['Total_flux']
-    hdr['MAJ'] = source['Maj']
-    hdr['MIN'] = source['Min']
-    hdr['PA'] = source['PA']
-    hdr['BMAJ'] = bmaj / galsim.degrees
-    hdr['BMIN'] = bmin / galsim.degrees
-    hdr['BPA'] = bpa / galsim.degrees
-    hdr['TIME_TAKEN'] = t_sourceend - t_sourcestart    
+
+    fits.setval(cat_fname, 'SOURCE_ID', value = source['Source_id'])
+    fits.setval(cat_fname, 'RA', value = source['RA'])
+    fits.setval(cat_fname, 'DEC', value = source['DEC'])
+    fits.setval(cat_fname, 'TOTAL_FLUX', value = source['Total_flux'])
+    fits.setval(cat_fname, 'MAJ', value = source['Maj'])
+    fits.setval(cat_fname, 'MIN', value = source['Min'])
+    fits.setval(cat_fname, 'PA', value = source['PA'])
+    fits.setval(cat_fname, 'BMAJ', value = bmaj / galsim.degrees)
+    fits.setval(cat_fname, 'BMIN', value = bmin / galsim.degrees)
+    fits.setval(cat_fname, 'BPA', value = bpa / galsim.degrees)
+    fits.setval(cat_fname, 'TIME_TAKEN', value = t_sourceend - t_sourcestart)
     
-    output_cat.write('{0}_supercal_output.fits'.format(source['Source_id']), format='fits', overwrite=True)
-    
-    pdb.set_trace()
-    
-    print('Source {0} finished in {1} seconds.'.format(source_i, t_sourceend - t_sourcestart))
+    print('Source {0} finished in '.format(source_i)+('%.2f seconds.' % t_sourceend - t_sourcestart))
     print('--------------------------------------')
     
 if __name__ == '__main__':
