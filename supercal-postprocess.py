@@ -27,24 +27,43 @@ def make_m_and_c(config):
     return m*x + c
 
   cat = Table.read(config.get('input', 'catalogue'), format='fits')
-
-  supercals_cat = Table(names=('supercals_m','supercals_c','E_supercals_m','E_supercals_c'))
+  cat_supercals_cols = Table(names=('supercals_m','supercals_c','E_supercals_m','E_supercals_c'))
 
   for source_i, source in enumerate(cat):
+    supercals_cat_fname = config.get('output', 'output_cat_dir')+'/{0}_supercals_output.fits'.format(source['Source_id'])
+    supercals_cat = Table.read(supercals_cat_fname, format='fits')
 
-    gin =
-    gout =
-  
-    popt, pcov = curve_fit(flin, gin, gin-gout)
+    popt, pcov = curve_fit(flin, source['e1_inp'], source['e1'] - source['e1_inpt'])
     perr = np.sqrt(np.diag(pcov))
-    supercals_cat.add_row([popt[0],popt[1],perr[0],perr[1]])
+    cat_supercals_cols.add_row([popt[0],popt[1],perr[0],perr[1]])
+    if config.getboolean('output','do_ein_eout_plots'):
+      ein_eout_plot_fname = config.get('output', 'output_plot_dir')+'/{0}_supercals_ein_eout.png'.format(source['Source_id'])
+      make_ein_eout_plots(source, popt[0], popt[1], ein_eout_plot_fname)
 
-  cat.add_columns([supercals_cat['supercals_m'],
-                   supercals_cat['supercals_c'],
-                   supercals_cat['E_supercals_m'],
-                   supercals_cat['E_supercals_c']])
+  cat.add_columns([cat_supercals_cols['supercals_m'],
+                   cat_supercals_cols['supercals_c'],
+                   cat_supercals_cols['E_supercals_m'],
+                   cat_supercals_cols['E_supercals_c']])
 
-def make_gin_gout_plots(config):
+def make_ein_eout_plots(source, m, c, fname):
+
+  plt.figure(1, figsize=(10, 3.75))
+  plt.subplot(121)
+  plt.plot(source['e1_inp'], source['e1'] - source['e1_inpt'], 'o', color='powderblue')
+  x = np.linspace(-1,1,32)
+  y = m*x + c
+  plt.plot(x, y, 'k-')
+  plt.xlabel('$\mathrm{Input \, Ellipticity} e^{\\rm inp}_{1}$')
+  plt.ylabel('$\mathrm{Ellipticity \, Bias} e^{\\rm obs}_{1} - e^{\\rm inp}_{1}$')
+  plt.subplot(122)
+  plt.plot(source['e1_inp'], source['e1'] - source['e1_inpt'], 'o', color='powderblue')
+  x = np.linspace(-1,1,32)
+  y = m*x + c
+  plt.plot(x, y, 'k-')
+  plt.xlabel('$\mathrm{Input \, Ellipticity} e^{\\rm inp}_{1}$')
+  plt.ylabel('$\mathrm{Ellipticity \, Bias} e^{\\rm obs}_{1} - e^{\\rm inp}_{1}$')
+
+  plt.savefig(fname, dpi=300, bbox_inches='tight')
 
 def make_calib_surface_plots(config):
 
@@ -243,7 +262,7 @@ def runSuperCal(config):
           idx += 1
         print('----------------||--------------------')
   
-    cat_fname = '{0}_supercal_output.fits'.format(source['Source_id'])
+    cat_fname = '{0}_supercals_output.fits'.format(source['Source_id'])
     output_cat.write(cat_fname, format='fits', overwrite=True)
     
     t_sourceend = time.time()

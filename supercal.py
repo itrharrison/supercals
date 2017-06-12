@@ -91,7 +91,7 @@ def runSuperCal(config):
 
   for source_i, source in enumerate(cat):
     t_sourcestart = time.time()
-    output_cat = Table(names=('mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp', 'e1', 'e2', 'radius', 'snr', 'likelihood', 'disc_A', 'disc_flux'))
+    output_cat = Table(names=('Source_id', 'mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp', 'e1', 'e2', 'radius', 'snr', 'likelihood', 'disc_A', 'disc_flux'))
     output_cat['theta_g'].unit = 'rad'
     output_cat['theta_e'].unit = 'rad'
     print('######################################')
@@ -199,7 +199,7 @@ def runSuperCal(config):
           disc_A = result[0]['disc_A']
           disc_flux = result[0]['disc_flux']
           
-          output_cat.add_row([mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs, radius, snr, likelihood, disc_A, disc_flux])
+          output_cat.add_row([source['Source_id'], mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs, radius, snr, likelihood, disc_A, disc_flux])
           
           print(('%.3f' % e1)+'\t'+('%.3f' % e1_obs)+'\t||\t'+('%.3f' % e2)+'\t'+('%.3f' % e2_obs))
           
