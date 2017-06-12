@@ -40,7 +40,7 @@ def runSuperCal(config):
   
   # load catalogue positions
   cat = Table.read(config.get('input', 'catalogue'), format='fits')
-
+  
   # load residual image
   residual_fname = config.get('input', 'residual_image')
   clean_fname = config.get('input', 'clean_image')
@@ -62,16 +62,16 @@ def runSuperCal(config):
   pixel_scale = abs(header_twod['CDELT1'])*galsim.degrees
   image_size = clean_image.shape[0]
   
-  full_image = galsim.ImageF(image_size, image_size, scale=pixel_scale)
-  im_center = full_image.bounds.trueCenter()
+  residual_image_gs = galsim.ImageF(image_size, image_size, scale=pixel_scale)
+  im_center = residual_image_gs.bounds.trueCenter()
 
   # Create a WCS for the galsim image
-  full_image.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
+  residual_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
 
   residual_image = galsim.Image(residual_image)
   clean_image = galsim.Image(clean_image)
 
-  full_image += residual_image
+  residual_image_gs += residual_image
 
   orientations = np.linspace(0.e0, np.pi, n_orientations)
   ellipticities = np.linspace(0.e0, 0.7, n_ellipticities)
@@ -91,7 +91,7 @@ def runSuperCal(config):
 
   for source_i, source in enumerate(cat):
     t_sourcestart = time.time()
-    output_cat = Table(names=('mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp', 'e1', 'e2', 'radius', 'snr', 'disc_A'))
+    output_cat = Table(names=('mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp', 'e1', 'e2', 'radius', 'snr', 'likelihood', 'disc_A', 'disc_flux'))
     output_cat['theta_g'].unit = 'rad'
     output_cat['theta_e'].unit = 'rad'
     print('######################################')
@@ -110,7 +110,9 @@ def runSuperCal(config):
         print('----------------||--------------------')
         for o_i, theta in enumerate(orientations):
           
-          gal = galsim.Exponential(scale_radius=source['Maj']*galsim.degrees/galsim.arcsec, flux=source['Total_flux'])
+          gal_gauss = galsim.Gaussian(fwhm=source['Maj']*galsim.degrees/galsim.arcsec, flux=source['Total_flux'])
+          hlr = gal_gauss.getHalfLightRadius()
+          gal = galsim.Exponential(half_light_radius=hlr, flux=source['Total_flux'])
           
           e1 = mod_e*np.cos(2.*theta)
           e2 = mod_e*np.sin(2.*theta)
@@ -153,20 +155,24 @@ def runSuperCal(config):
           stamp.setCenter(ix, iy)
           psf_stamp.setCenter(ix, iy)
           
-          flux_correction = source['Peak_flux']/stamp.array.max()
-          stamp = stamp*flux_correction
+          #flux_correction = source['Peak_flux']/stamp.array.max()
+          #stamp = stamp*flux_correction
           
           # Add the flux from the residual image to the sub-image
-          bounds = stamp.bounds & full_image.bounds
+          bounds = stamp.bounds & residual_image_gs.bounds
           
-          if config.get('ring', 'doplots') and g_i==1:
+          flux_in_source = np.sum((clean_image[bounds].array)-(residual_image_gs[bounds].array))
+          flux_correction = flux_in_source/np.sum(stamp.array)
+          stamp = stamp*flux_correction
+          
+          if config.get('ring', 'doplots') and g_i==0:
             plt.figure(1)
             plt.subplot(141)
             plt.imshow(clean_image[bounds].array, cmap='afmhot', interpolation='nearest')
             plt.title('CLEAN')
             plt.axis('off')
             plt.subplot(142)
-            plt.imshow(full_image[bounds].array, cmap='afmhot', interpolation='nearest')
+            plt.imshow(residual_image_gs[bounds].array, cmap='afmhot', interpolation='nearest')
             plt.title('Residual')
             plt.axis('off')
             plt.subplot(143)
@@ -174,12 +180,13 @@ def runSuperCal(config):
             plt.title('Model')
             plt.axis('off')
             plt.subplot(144)
-            plt.imshow(stamp.array + full_image[bounds].array, cmap='afmhot', interpolation='nearest')
+            plt.imshow(stamp.array + residual_image_gs[bounds].array, cmap='afmhot', interpolation='nearest')
             plt.title('Model + Residual')
             plt.axis('off')
-            plt.savefig('plots/source_{0}.png'.format(source_i), dpi=160, bbox_inches='tight')
+            plt.savefig(config.get('output', 'output_plot_dir')+'/source_{0}.png'.format(source_i), dpi=160, bbox_inches='tight')
           
-          stamp[bounds] += full_image[bounds]
+          stamp[bounds] += residual_image_gs[bounds]
+          
           weight = np.ones_like(stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
           result, best_fit = analyze(stamp.array, psf_stamp.array, options, weight=weight, ID=idx)
@@ -188,16 +195,18 @@ def runSuperCal(config):
           e2_obs = result[0]['e2']
           radius = result[0]['radius']
           snr = result[0]['snr']
+          likelihood = result[0]['likelihood']
           disc_A = result[0]['disc_A']
+          disc_flux = result[0]['disc_flux']
           
-          output_cat.add_row([mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs, radius, snr, disc_A])
+          output_cat.add_row([mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs, radius, snr, likelihood, disc_A, disc_flux])
           
           print(('%.3f' % e1)+'\t'+('%.3f' % e1_obs)+'\t||\t'+('%.3f' % e2)+'\t'+('%.3f' % e2_obs))
           
           idx += 1
         print('----------------||--------------------')
   
-    cat_fname = '{0}_supercal_output.fits'.format(source['Source_id'])
+    cat_fname = config.get('output', 'output_cat_dir')+'/{0}_supercal_output.fits'.format(source['Source_id'])
     output_cat.write(cat_fname, format='fits', overwrite=True)
     
     t_sourceend = time.time()
