@@ -40,6 +40,8 @@ def runSuperCal(config):
   
   # load catalogue positions
   cat = Table.read(config.get('input', 'catalogue'), format='fits')
+  cat_snr = cat['Peak_flux']/cat['Resid_Isl_rms']
+  cat = cat[cat_snr > config.getfloat('input', 'snr_cut')]
   
   # load residual image
   residual_fname = config.get('input', 'residual_image')
