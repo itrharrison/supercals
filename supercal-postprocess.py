@@ -1,9 +1,12 @@
 import pdb
-import ConfigParser
+try:
+  import ConfigParser
+except ImportError:
+  import configparser as ConfigParser
 import numpy as np
 import sys
 import time
-import cPickle as pickle
+import pickle
 
 from scipy import interpolate
 from scipy.optimize import curve_fit
@@ -12,14 +15,19 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy import wcs
 
-import galsim
-
 sys.path.append('../simuCLASS')
 
-from skymodel.skymodel_tools import setup_wcs
-
 from matplotlib import pyplot as plt
-plt.close('all')
+from matplotlib import rc
+from mpl_toolkits.axes_grid1 import AxesGrid
+
+from astropy import wcs
+
+rc('text', usetex=True)
+rc('font', family='serif')
+rc('font', size=11)
+
+plt.close('all') # tidy up any unshown plots
 
 def make_m_and_c(config):
   
@@ -27,48 +35,159 @@ def make_m_and_c(config):
     return m*x + c
 
   cat = Table.read(config.get('input', 'catalogue'), format='fits')
-  cat_supercals_cols = Table(names=('supercals_m','supercals_c','E_supercals_m','E_supercals_c'))
+  cat_snr = cat['Peak_flux']/cat['Resid_Isl_rms']
+  cat = cat[cat_snr > config.getfloat('input', 'snr_cut')]
+  cat_supercals_cols = Table(names=('supercals_m_e1','supercals_c_e1',
+                                    'E_supercals_m_e1','E_supercals_c_e1',
+                                    'supercals_m_e2','supercals_c_e2',
+                                    'E_supercals_m_e2','E_supercals_c_e2'))
+
+  if config.getboolean('output','do_ein_eout_plots'):
+    clean_fname = config.get('input', 'clean_image')
+    clean_image = fits.getdata(clean_fname)[0,0]
+    w_fourd = wcs.WCS(config.get('input', 'clean_image'))
+    w_twod = w_fourd.dropaxis(3).dropaxis(2)
 
   for source_i, source in enumerate(cat):
-    supercals_cat_fname = config.get('output', 'output_cat_dir')+'/{0}_supercals_output.fits'.format(source['Source_id'])
+    print(source_i)
+    supercals_cat_fname = config.get('output', 'output_cat_dir')+'/{0}_supercal_output.fits'.format(source['Source_id'])
     supercals_cat = Table.read(supercals_cat_fname, format='fits')
 
-    popt, pcov = curve_fit(flin, source['e1_inp'], source['e1'] - source['e1_inpt'])
-    perr = np.sqrt(np.diag(pcov))
-    cat_supercals_cols.add_row([popt[0],popt[1],perr[0],perr[1]])
+    popt_e1, pcov_e1 = curve_fit(flin, supercals_cat['e1_inp'], supercals_cat['e1'] - supercals_cat['e1_inp'])
+    popt_e2, pcov_e2 = curve_fit(flin, supercals_cat['e2_inp'], supercals_cat['e2'] - supercals_cat['e2_inp'])
+    perr_e1 = np.sqrt(np.diag(pcov_e1))
+    perr_e2 = np.sqrt(np.diag(pcov_e2))
+    cat_supercals_cols.add_row([popt_e1[0],popt_e1[1],
+                                perr_e1[0],perr_e1[1],
+                                popt_e2[0],popt_e2[1],
+                                perr_e2[0],perr_e2[1]])
     if config.getboolean('output','do_ein_eout_plots'):
-      ein_eout_plot_fname = config.get('output', 'output_plot_dir')+'/{0}_supercals_ein_eout.png'.format(source['Source_id'])
-      make_ein_eout_plots(source, popt[0], popt[1], ein_eout_plot_fname)
+      ein_eout_plot_fname = config.get('output', 'output_plot_dir')+'/{0}_supercals_ein_eout.png'.format(int(supercals_cat['Source_id'][0]))
+      make_ein_eout_plots(supercals_cat, popt_e1[0], popt_e1[1], popt_e2[0], popt_e2[1], ein_eout_plot_fname)
 
-  cat.add_columns([cat_supercals_cols['supercals_m'],
-                   cat_supercals_cols['supercals_c'],
-                   cat_supercals_cols['E_supercals_m'],
-                   cat_supercals_cols['E_supercals_c']])
+  if 'supercals_m_e1' in cat.colnames:
+    cat['supercals_m_e1'] = cat_supercals_cols['supercals_m_e1']
+    cat['supercals_c_e1'] = cat_supercals_cols['supercals_c_e1']
+    cat['E_supercals_m_e1'] = cat_supercals_cols['E_supercals_m_e1']
+    cat['E_supercals_c_e1'] = cat_supercals_cols['E_supercals_c_e1']
+    cat['supercals_m_e2'] = cat_supercals_cols['supercals_m_e2']
+    cat['supercals_c_e2'] = cat_supercals_cols['supercals_c_e2']
+    cat['E_supercals_m_e2'] = cat_supercals_cols['E_supercals_m_e2']
+    cat['E_supercals_c_e2'] = cat_supercals_cols['E_supercals_c_e2']
+  else:
+    cat.add_columns([cat_supercals_cols['supercals_m_e1'],
+                     cat_supercals_cols['supercals_c_e1'],
+                     cat_supercals_cols['E_supercals_m_e1'],
+                     cat_supercals_cols['E_supercals_c_e1'],
+                     cat_supercals_cols['supercals_m_e2'],
+                     cat_supercals_cols['supercals_c_e2'],
+                     cat_supercals_cols['E_supercals_m_e2'],
+                     cat_supercals_cols['E_supercals_c_e2']])
+  
+  cat.write(config.get('input', 'catalogue'), format='fits', overwrite=True)
 
-def make_ein_eout_plots(source, m, c, fname):
+def make_ein_eout_plots(source, m_e1, c_e1, m_e2, c_e2, fname, stamp=None):
 
-  plt.figure(1, figsize=(10, 3.75))
-  plt.subplot(121)
-  plt.plot(source['e1_inp'], source['e1'] - source['e1_inpt'], 'o', color='powderblue')
+  plt.close('all')
+  if stamp is None:
+    plt.figure(1, figsize=(5, 3.75))
+    plt.subplot(111)
+  else:
+    plt.figure(1, figsize=(10, 3.75))
+    plt.subplot(121)
+  plt.axhline(0, color='k', linestyle='--')
+  plt.plot(source['e1_inp'], source['e1'] - source['e1_inp'], 'o', color='powderblue', label='$e_{1}$')
+  plt.plot(source['e2_inp'], source['e2'] - source['e2_inp'], '+', color='lightcoral', label='$e_{2}$')
   x = np.linspace(-1,1,32)
-  y = m*x + c
-  plt.plot(x, y, 'k-')
-  plt.xlabel('$\mathrm{Input \, Ellipticity} e^{\\rm inp}_{1}$')
-  plt.ylabel('$\mathrm{Ellipticity \, Bias} e^{\\rm obs}_{1} - e^{\\rm inp}_{1}$')
+  y_e1 = m_e1*x + c_e1
+  y_e2 = m_e2*x + c_e2
+  plt.plot(x, y_e1, '-', color='powderblue')
+  plt.plot(x, y_e2, '-', color='lightcoral')
+  plt.xlabel('$\mathrm{Input \, Ellipticity} \, \, e^{\\rm inp}_{i}$')
+  plt.ylabel('$\mathrm{Ellipticity \, Bias} \, \, e^{\\rm obs}_{i} - e^{\\rm inp}_{i}$')
+  plt.xlim([-1,1])
+  plt.xticks([-1,-0.5,0,0.5,1], ('-1','-0.5','0','0.5','1'))
+  plt.ylim([-1,1])
+  plt.yticks([-1,-0.5,0,0.5,1], ('-1','-0.5','0','0.5','1'))
+  plt.legend(frameon=False)
+
+  if stamp is not None:
+    plt.subplot(122)
+    plt.imshow(stamp, cmap='afmhot')
+    plt.axis('off')
+
+
+  '''
   plt.subplot(122)
-  plt.plot(source['e1_inp'], source['e1'] - source['e1_inpt'], 'o', color='powderblue')
+  plt.plot(source['e1_inp'], source['e1'] - source['e1_inp'], 'o', color='powderblue')
   x = np.linspace(-1,1,32)
   y = m*x + c
   plt.plot(x, y, 'k-')
-  plt.xlabel('$\mathrm{Input \, Ellipticity} e^{\\rm inp}_{1}$')
-  plt.ylabel('$\mathrm{Ellipticity \, Bias} e^{\\rm obs}_{1} - e^{\\rm inp}_{1}$')
+  plt.axhline(0, color='k', linestyle='--')
+  plt.xlabel('$\mathrm{Input \, Ellipticity} \, \, e^{\\rm inp}_{2}$')
+  plt.xlim([-1,1])
+  plt.ylim([-1,1])
+  #plt.ylabel('$\mathrm{Ellipticity \, Bias} e^{\\rm obs}_{1} - e^{\\rm inp}_{1}$')
+  '''
 
   plt.savefig(fname, dpi=300, bbox_inches='tight')
 
 def make_calib_surface_plots(config):
 
-  finterp_m = interpolate.interp2d(cat['RA'], cat['DEC'], cat['supercals_m'], kind='cubic')
-  finterp_c = interpolate.interp2d(cat['RA'], cat['DEC'], cat['supercals_c'], kind='cubic')
+  cat = Table.read(config.get('input', 'catalogue'), format='fits')
+
+  plt.close('all')
+
+  f, axarr = plt.subplots(2,2)
+  p = axarr[0,0].scatter(cat['RA'], cat['DEC'], c=abs(cat['supercals_m_e1']))
+  axarr[0,0].set_title('$|m_{e_1}|$')
+  f.colorbar(p, ax=axarr[0,0], pad=0)
+  p = axarr[0,1].scatter(cat['RA'], cat['DEC'], c=abs(cat['supercals_m_e2']))
+  axarr[0,1].set_title('$|m_{e_2}|$')
+  f.colorbar(p, ax=axarr[0,1], pad=0)
+  p = axarr[1,0].scatter(cat['RA'], cat['DEC'], c=abs(cat['supercals_c_e1']))
+  axarr[1,0].set_title('$|c_{e_1}|$')
+  f.colorbar(p, ax=axarr[1,0], pad=0)
+  axarr[1,0].set_xlabel('$\mathrm{RA \, \, [deg]}$')
+  axarr[1,0].set_ylabel('$\mathrm{Dec \, \, [deg]}$')
+  p = axarr[1,1].scatter(cat['RA'], cat['DEC'], c=abs(cat['supercals_c_e2']))
+  axarr[1,1].set_title('$|c_{e_2}|$')
+  f.colorbar(p, ax=axarr[1,1], pad=0)
+
+  plt.setp([a.get_xticklabels() for a in axarr[0, :]], visible=False)
+  plt.setp([a.get_yticklabels() for a in axarr[:, 1]], visible=False)
+
+
+  f.savefig('calib_plots.png', dpi=300, bbox_inches='tight')
+
+
+  '''
+  grid = AxesGrid(fig, 143,  # similar to subplot(143)
+                  nrows_ncols=(2, 2),
+                  axes_pad=0.1,
+                  label_mode="1",
+                  share_all=True,
+                  cbar_location="bottom",
+                  cbar_mode="each",
+                  cbar_size="7%",
+                  cbar_pad="2%",
+                  )
+
+  p = grid[0].scatter(cat['RA'], cat['DEC'], c=cat['supercals_m_e1'])
+  grid.cbar_axes[0].colorbar(p)
+  p = grid[1].scatter(cat['RA'], cat['DEC'], c=cat['supercals_m_e2'])
+  grid.cbar_axes[1].colorbar(p)
+  p = grid[2].scatter(cat['RA'], cat['DEC'], c=cat['supercals_c_e1'])
+  grid.cbar_axes[2].colorbar(p)
+  p = grid[3].scatter(cat['RA'], cat['DEC'], c=cat['supercals_c_e2'])
+  grid.cbar_axes[3].colorbar(p)
+
+  plt.savefig('calib_plots.png', dpi=300, bbox_inches='tight')
+  '''
+
+  '''
+  finterp_m = interpolate.interp2d(cat['RA'], cat['DEC'], cat['supercals_m_e1'], kind='cubic')
+  finterp_c = interpolate.interp2d(cat['RA'], cat['DEC'], cat['supercals_c_e1'], kind='cubic')
 
   ran = np.linspace(ra_min, ra_max, 512)
   decn = np.linspace(dec_min, dec_max, 512)
@@ -82,7 +201,9 @@ def make_calib_surface_plots(config):
 
   plt.subplot(122)
   plt.scatter(ra_new, dec_new, c=c_surf)
+  '''
 
+'''
 def get_stamp_size(source, pixel_scale):
 
   stamp_size = 10.* (source['Maj']*galsim.degrees / galsim.arcsec) / (pixel_scale / galsim.arcsec)
@@ -281,9 +402,10 @@ def runSuperCal(config):
     
     print('Source {0} finished in '.format(source_i)+('%.2f seconds.' % (t_sourceend - t_sourcestart)))
     print('--------------------------------------')
-    
+'''
 if __name__ == '__main__':
   config = ConfigParser.ConfigParser()
   config.read(sys.argv[-1])
   
-  runSuperCal(config)
+  make_m_and_c(config)
+  make_calib_surface_plots(config)
