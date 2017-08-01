@@ -23,9 +23,9 @@ from mpl_toolkits.axes_grid1 import AxesGrid
 
 from astropy import wcs
 
-rc('text', usetex=True)
-rc('font', family='serif')
-rc('font', size=11)
+#rc('text', usetex=True)
+#rc('font', family='serif')
+#rc('font', size=11)
 
 plt.close('all') # tidy up any unshown plots
 
@@ -139,18 +139,18 @@ def make_calib_surface_plots(config):
   plt.close('all')
 
   f, axarr = plt.subplots(2,2)
-  p = axarr[0,0].scatter(cat['RA'], cat['DEC'], c=abs(cat['supercals_m_e1']))
+  p = axarr[0,0].scatter(cat['RA'], cat['DEC'], c=abs(cat['supercals_m_e1']), cmap='gnuplot2')
   axarr[0,0].set_title('$|m_{e_1}|$')
   f.colorbar(p, ax=axarr[0,0], pad=0)
-  p = axarr[0,1].scatter(cat['RA'], cat['DEC'], c=abs(cat['supercals_m_e2']))
+  p = axarr[0,1].scatter(cat['RA'], cat['DEC'], c=abs(cat['supercals_m_e2']), cmap='gnuplot2')
   axarr[0,1].set_title('$|m_{e_2}|$')
   f.colorbar(p, ax=axarr[0,1], pad=0)
-  p = axarr[1,0].scatter(cat['RA'], cat['DEC'], c=abs(cat['supercals_c_e1']))
+  p = axarr[1,0].scatter(cat['RA'], cat['DEC'], c=abs(cat['supercals_c_e1']), cmap='gnuplot2')
   axarr[1,0].set_title('$|c_{e_1}|$')
   f.colorbar(p, ax=axarr[1,0], pad=0)
   axarr[1,0].set_xlabel('$\mathrm{RA \, \, [deg]}$')
   axarr[1,0].set_ylabel('$\mathrm{Dec \, \, [deg]}$')
-  p = axarr[1,1].scatter(cat['RA'], cat['DEC'], c=abs(cat['supercals_c_e2']))
+  p = axarr[1,1].scatter(cat['RA'], cat['DEC'], c=abs(cat['supercals_c_e2']), cmap='gnuplot2')
   axarr[1,1].set_title('$|c_{e_2}|$')
   f.colorbar(p, ax=axarr[1,1], pad=0)
 
@@ -158,7 +158,7 @@ def make_calib_surface_plots(config):
   plt.setp([a.get_yticklabels() for a in axarr[:, 1]], visible=False)
 
 
-  f.savefig('calib_plots.png', dpi=300, bbox_inches='tight')
+  f.savefig(config.get('output', 'output_plot_dir')+'/calib_plots.png', dpi=300, bbox_inches='tight')
 
 
   '''

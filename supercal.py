@@ -4,6 +4,7 @@ import numpy as np
 import sys
 import time
 import cPickle as pickle
+from math import ceil
 
 from astropy.io import fits
 from astropy.table import Table
@@ -11,7 +12,7 @@ from astropy import wcs
 
 import galsim
 
-sys.path.append('../simuCLASS')
+sys.path.append('../simuclass')
 
 from skymodel.skymodel_tools import setup_wcs
 
@@ -21,10 +22,18 @@ plt.close('all')
 def get_stamp_size(source, pixel_scale):
 
   stamp_size = 10.* (source['Maj']*galsim.degrees / galsim.arcsec) / (pixel_scale / galsim.arcsec)
-
-  return stamp_size
+  stamp_size = ceil(stamp_size/2.) *2  
+  
+  return int(stamp_size)
 
 def runSuperCal(config):
+  '''
+  print('######################################')
+  print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+  print(' CAUTION: PSF IS ARBITRAILY CIRCULAR  ')
+  print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+  print('######################################')
+  '''
   im3dir = config.get('im3shape', 'install_directory')
 
   sys.path.append(im3dir)
@@ -38,6 +47,8 @@ def runSuperCal(config):
   n_orientations = config.getint('ring','n_orientations') # 8
   n_ellipticities = config.getint('ring','n_ellipticities') # 15
   
+  n_evals = n_shears*n_orientations*n_ellipticities
+  
   # load catalogue positions
   cat = Table.read(config.get('input', 'catalogue'), format='fits')
   cat_snr = cat['Peak_flux']/cat['Resid_Isl_rms']
@@ -46,14 +57,16 @@ def runSuperCal(config):
   # load residual image
   residual_fname = config.get('input', 'residual_image')
   clean_fname = config.get('input', 'clean_image')
+  dirty_psf_fname = config.get('input', 'psf_image')
   residual_image = fits.getdata(residual_fname)[0,0]
   clean_image = fits.getdata(clean_fname)[0,0]
+  dirty_psf_image = fits.getdata(dirty_psf_fname)[0,0]
 
   # get the beam information
   clean_image_header = fits.getheader(clean_fname)
   bmaj = clean_image_header['BMAJ']*galsim.degrees
   bmin = clean_image_header['BMIN']*galsim.degrees
-  bpa = clean_image_header['BPA']*galsim.degrees
+  bpa = clean_image_header['BPA']*galsim.radians
   
   # set up wcs
   #w_twod = setup_wcs(config, ndim=2)
@@ -75,7 +88,8 @@ def runSuperCal(config):
 
   residual_image_gs += residual_image
 
-  orientations = np.linspace(0.e0, np.pi, n_orientations)
+  orientations = np.linspace(0.e0, np.pi, n_orientations+1)
+  orientations = orientations[:-1]
   ellipticities = np.linspace(0.e0, 0.7, n_ellipticities)
   ellipticities = ellipticities[::-1]
   shears = np.linspace(0.e0, 0.7, n_shears)
@@ -153,15 +167,33 @@ def runSuperCal(config):
           options['sersics_y0_max'] = stamp_size
           stamp = obsgal.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
           psf_stamp = psf.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
+          dirty_psf_stamp = dirty_psf_image[dirty_psf_image.shape[0]/2 - stamp_size/2:dirty_psf_image.shape[0]/2 + stamp_size/2, dirty_psf_image.shape[1]/2 - stamp_size/2:dirty_psf_image.shape[1]/2 + stamp_size/2]
           
           stamp.setCenter(ix, iy)
           psf_stamp.setCenter(ix, iy)
-          
           #flux_correction = source['Peak_flux']/stamp.array.max()
           #stamp = stamp*flux_correction
           
           # Add the flux from the residual image to the sub-image
           bounds = stamp.bounds & residual_image_gs.bounds
+          if residual_image[bounds].bounds != stamp.bounds:
+          
+            e1_obs = np.nan
+            e2_obs = np.nan
+            radius = np.nan
+            snr = np.nan
+            likelihood = np.nan
+            disc_A = np.nan
+            disc_flux = np.nan
+            
+            output_cat.add_row([source['Source_id'], mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs, radius, snr, likelihood, disc_A, disc_flux])
+          
+            print(('%.3f' % e1)+'\t'+('%.3f' % e1_obs)+'\t||\t'+('%.3f' % e2)+'\t'+('%.3f' % e2_obs))
+          
+            idx += 1
+            
+            continue
+            
           
           flux_in_source = np.sum((clean_image[bounds].array)-(residual_image_gs[bounds].array))
           flux_correction = flux_in_source/np.sum(stamp.array)
@@ -169,33 +201,51 @@ def runSuperCal(config):
           
           if config.get('ring', 'doplots') and g_i==0:
             plt.figure(1)
-            plt.subplot(141)
+            plt.subplot(161)
             plt.imshow(clean_image[bounds].array, cmap='afmhot', interpolation='nearest')
             plt.title('CLEAN')
             plt.axis('off')
-            plt.subplot(142)
+            plt.subplot(162)
             plt.imshow(residual_image_gs[bounds].array, cmap='afmhot', interpolation='nearest')
             plt.title('Residual')
             plt.axis('off')
-            plt.subplot(143)
+            plt.subplot(163)
             plt.imshow(stamp.array, cmap='afmhot', interpolation='nearest')
             plt.title('Model')
             plt.axis('off')
-            plt.subplot(144)
+            plt.subplot(164)
             plt.imshow(stamp.array + residual_image_gs[bounds].array, cmap='afmhot', interpolation='nearest')
             plt.title('Model + Residual')
             plt.axis('off')
-            plt.savefig(config.get('output', 'output_plot_dir')+'/source_{0}.png'.format(source_i), dpi=160, bbox_inches='tight')
-          
+            plt.subplot(166)
+            plt.imshow(psf_stamp.array, cmap='afmhot', interpolation='nearest')
+            plt.title('CLEAN PSF')
+            plt.axis('off')
+            plt.subplot(165)
+            plt.imshow(dirty_psf_stamp, cmap='afmhot', interpolation='nearest')
+            plt.title('Dirty PSF')
+            plt.axis('off')
+            plt.savefig(config.get('output', 'output_plot_dir')+'/source_{0}_mode_{1}_rot_{2}.png'.format(source_i, mod_e, theta), dpi=160, bbox_inches='tight')
+                      
           stamp[bounds] += residual_image_gs[bounds]
           
           weight = np.ones_like(stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
           result, best_fit = analyze(stamp.array, psf_stamp.array, options, weight=weight, ID=idx)
           result = result.as_dict(0, count_varied_params(options))
-          e1_obs = result[0]['e1']
-          e2_obs = result[0]['e2']
           radius = result[0]['radius']
+          # convert between im3shape and galsim ellipticity definitions
+          g1_obs = result[0]['e1']
+          g2_obs = result[0]['e2']
+
+          g_obs = np.sqrt(g1_obs**2. + g2_obs**2.)
+          q_obs = (1. - g_obs)/(1. + g_obs)
+          
+          e_obs = (1. - q_obs**2.)/(1. + q_obs**2.)
+          
+          e1_obs = g1_obs*e_obs/g_obs
+          e2_obs = g2_obs*e_obs/g_obs
+
           snr = result[0]['snr']
           likelihood = result[0]['likelihood']
           disc_A = result[0]['disc_A']
@@ -226,6 +276,7 @@ def runSuperCal(config):
     fits.setval(cat_fname, 'TIME_TAKEN', value = t_sourceend - t_sourcestart)
     
     print('Source {0} finished in '.format(source_i)+('%.2f seconds.' % (t_sourceend - t_sourcestart)))
+    print('With an average of '.format(source_i)+('%.2f s' % (n_evals/float(t_sourceend - t_sourcestart)))+'/ring point.')
     print('--------------------------------------')
     
 if __name__ == '__main__':
