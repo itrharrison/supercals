@@ -66,7 +66,7 @@ def runSuperCal(config):
   clean_image_header = fits.getheader(clean_fname)
   bmaj = clean_image_header['BMAJ']*galsim.degrees
   bmin = clean_image_header['BMIN']*galsim.degrees
-  bpa = clean_image_header['BPA']*galsim.radians
+  bpa = clean_image_header['BPA']*galsim.degrees
   
   # set up wcs
   #w_twod = setup_wcs(config, ndim=2)
