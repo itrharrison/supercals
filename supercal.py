@@ -19,9 +19,9 @@ from skymodel.skymodel_tools import setup_wcs
 from matplotlib import pyplot as plt
 plt.close('all')
 
-def get_stamp_size(source, pixel_scale):
+def get_stamp_size(source, pix_scale):
 
-  stamp_size = 10.* (source['Maj']*galsim.degrees / galsim.arcsec) / (pixel_scale / galsim.arcsec)
+  stamp_size = 10.* (source['Maj']*galsim.degrees / galsim.arcsec) / (pix_scale / galsim.arcsec)
   stamp_size = ceil(stamp_size/2.) *2  
   
   return int(stamp_size)
@@ -68,12 +68,12 @@ def runSuperCal(config):
   bmin = clean_image_header['BMIN']*galsim.degrees
   bpa = clean_image_header['BPA']*galsim.degrees
   
-  clean_psf_q = clean_image_header['BMIN']/clean_image_header['BMAJ']
-  clean_psf_pa = clean_image_header['BPA']*galsim.degrees
-  clean_psf_fwhm = clean_image_header['BMAJ']*galsim.degrees
+  clean_psf_q = bmin/bmaj
+  clean_psf_pa = bpa
+  clean_psf_fwhm = bmaj
 
-  clean_psf_gaussian = galsim.Gaussian(fwhm=clean_psf_fwhm/galsim.arcsec)
-  clean_psf_gaussian = clean_psf_gaussian.shear(q=clean_psf_q, beta=clean_psf_pa)
+  clean_psf = galsim.Gaussian(fwhm=clean_psf_fwhm/galsim.arcsec)
+  clean_psf = clean_psf.shear(q=clean_psf_q, beta=clean_psf_pa)
   
   # set up wcs
   #w_twod = setup_wcs(config, ndim=2)
@@ -81,10 +81,10 @@ def runSuperCal(config):
   w_twod = w_fourd.dropaxis(3).dropaxis(2)
   header_twod = w_twod.to_header()
   
-  pixel_scale = np.abs(header_twod['CDELT1'])*galsim.degrees
+  pix_scale = np.abs(header_twod['CDELT1'])*galsim.degrees
   image_size = clean_image.shape[0]
   
-  residual_image_gs = galsim.ImageF(image_size, image_size, scale=pixel_scale)
+  residual_image_gs = galsim.ImageF(image_size, image_size, scale=pix_scale)
   im_center = residual_image_gs.bounds.trueCenter()
 
   # Create a WCS for the galsim image
@@ -153,7 +153,7 @@ def runSuperCal(config):
           psf_ellipticity = galsim.Shear(q=(bmin/galsim.arcsec)/(bmaj/galsim.arcsec), beta=bpa)
           psf = psf.shear(psf_ellipticity)
           '''
-          obsgal = galsim.Convolve([gal, psf])
+          obsgal = galsim.Convolve([gal, clean_psf])
           
           x, y = w_twod.wcs_world2pix(source['RA'], source['DEC'], 0,)
           x = float(x)
@@ -166,18 +166,20 @@ def runSuperCal(config):
           offset = galsim.PositionD(x-ix, y-iy)
           
           # Create the sub-image for this galaxy
-          stamp_size = get_stamp_size(source, pixel_scale)
+          stamp_size = get_stamp_size(source, pix_scale)
           options['stamp_size'] = stamp_size
           options['sersics_x0_start'] = stamp_size/2
           options['sersics_y0_start'] = stamp_size/2
           options['sersics_x0_max'] = stamp_size
           options['sersics_y0_max'] = stamp_size
-          stamp = obsgal.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
+          stamp = obsgal.drawImage(nx=stamp_size, ny=stamp_size, scale=pix_scale/galsim.arcsec, offset=offset)
           
-          clean_psf_gaussian_image = galsim.Image(stamp_size, stamp_size, scale=pixel_scale/galsim.arcsec)
-          psf_stamp = psf.drawImage(image=clean_psf_gaussian_image)
+          clean_psf_image = galsim.Image(stamp_size, stamp_size, scale=pix_scale)
+          clean_psf_stamp = clean_psf.drawImage(image=clean_psf_image)
+          clean_psf_stamp_array = clean_psf_stamp.array
+          clean_psf_stamp_array = clean_psf_stamp_array/clean_psf_stamp_array.max()
           
-          #psf_stamp = psf.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
+          #psf_stamp = psf.drawImage(nx=stamp_size, ny=stamp_size, scale=pix_scale/galsim.arcsec, offset=offset)
           dirty_psf_stamp = dirty_psf_image[dirty_psf_image.shape[0]/2 - stamp_size/2:dirty_psf_image.shape[0]/2 + stamp_size/2, dirty_psf_image.shape[1]/2 - stamp_size/2:dirty_psf_image.shape[1]/2 + stamp_size/2]
           
           stamp.setCenter(ix, iy)
@@ -230,7 +232,7 @@ def runSuperCal(config):
             plt.title('Model + Residual')
             plt.axis('off')
             plt.subplot(166)
-            plt.imshow(psf_stamp.array, cmap='gnuplot2', interpolation='nearest')
+            plt.imshow(clean_psf_stamp.array, cmap='gnuplot2', interpolation='nearest')
             plt.title('CLEAN PSF')
             plt.axis('off')
             plt.subplot(165)
@@ -243,7 +245,7 @@ def runSuperCal(config):
           
           weight = np.ones_like(stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
-          result, best_fit = analyze(stamp.array, psf_stamp.array, options, weight=weight, ID=idx)
+          result, best_fit = analyze(stamp.array, clean_psf_stamp.array, options, weight=weight, ID=idx)
           result = result.as_dict(0, count_varied_params(options))
           radius = result[0]['radius']
           # convert between im3shape and galsim ellipticity definitions
