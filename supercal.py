@@ -68,13 +68,20 @@ def runSuperCal(config):
   bmin = clean_image_header['BMIN']*galsim.degrees
   bpa = clean_image_header['BPA']*galsim.degrees
   
+  clean_psf_q = clean_image_header['BMIN']/clean_image_header['BMAJ']
+  clean_psf_pa = clean_image_header['BPA']*galsim.degrees
+  clean_psf_fwhm = clean_image_header['BMAJ']*galsim.degrees
+
+  clean_psf_gaussian = galsim.Gaussian(fwhm=clean_psf_fwhm/galsim.arcsec)
+  clean_psf_gaussian = clean_psf_gaussian.shear(q=clean_psf_q, beta=clean_psf_pa)
+  
   # set up wcs
   #w_twod = setup_wcs(config, ndim=2)
   w_fourd = wcs.WCS(config.get('input', 'clean_image'))
   w_twod = w_fourd.dropaxis(3).dropaxis(2)
   header_twod = w_twod.to_header()
   
-  pixel_scale = abs(header_twod['CDELT1'])*galsim.degrees
+  pixel_scale = np.abs(header_twod['CDELT1'])*galsim.degrees
   image_size = clean_image.shape[0]
   
   residual_image_gs = galsim.ImageF(image_size, image_size, scale=pixel_scale)
@@ -141,11 +148,11 @@ def runSuperCal(config):
           total_shear = ellipticity + shear
           
           gal = gal.shear(total_shear)
-          
+          '''
           psf = galsim.Gaussian(fwhm=bmaj/galsim.arcsec) # *PROBABLY* the clean beam PSF?
           psf_ellipticity = galsim.Shear(q=(bmin/galsim.arcsec)/(bmaj/galsim.arcsec), beta=bpa)
           psf = psf.shear(psf_ellipticity)
-          
+          '''
           obsgal = galsim.Convolve([gal, psf])
           
           x, y = w_twod.wcs_world2pix(source['RA'], source['DEC'], 0,)
@@ -166,7 +173,11 @@ def runSuperCal(config):
           options['sersics_x0_max'] = stamp_size
           options['sersics_y0_max'] = stamp_size
           stamp = obsgal.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
-          psf_stamp = psf.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
+          
+          clean_psf_gaussian_image = galsim.Image(stamp_size, stamp_size, scale=pixel_scale/galsim.arcsec)
+          psf_stamp = psf.drawImage(image=clean_psf_gaussian_image)
+          
+          #psf_stamp = psf.drawImage(nx=stamp_size, ny=stamp_size, scale=pixel_scale/galsim.arcsec, offset=offset)
           dirty_psf_stamp = dirty_psf_image[dirty_psf_image.shape[0]/2 - stamp_size/2:dirty_psf_image.shape[0]/2 + stamp_size/2, dirty_psf_image.shape[1]/2 - stamp_size/2:dirty_psf_image.shape[1]/2 + stamp_size/2]
           
           stamp.setCenter(ix, iy)
@@ -200,29 +211,30 @@ def runSuperCal(config):
           stamp = stamp*flux_correction
           
           if config.get('ring', 'doplots') and g_i==0:
+            pdb.set_trace()
             plt.figure(1)
             plt.subplot(161)
-            plt.imshow(clean_image[bounds].array, cmap='afmhot', interpolation='nearest')
+            plt.imshow(clean_image[bounds].array, cmap='gnuplot2', interpolation='nearest')
             plt.title('CLEAN')
             plt.axis('off')
             plt.subplot(162)
-            plt.imshow(residual_image_gs[bounds].array, cmap='afmhot', interpolation='nearest')
+            plt.imshow(residual_image_gs[bounds].array, cmap='gnuplot2', interpolation='nearest')
             plt.title('Residual')
             plt.axis('off')
             plt.subplot(163)
-            plt.imshow(stamp.array, cmap='afmhot', interpolation='nearest')
+            plt.imshow(stamp.array, cmap='gnuplot2', interpolation='nearest')
             plt.title('Model')
             plt.axis('off')
             plt.subplot(164)
-            plt.imshow(stamp.array + residual_image_gs[bounds].array, cmap='afmhot', interpolation='nearest')
+            plt.imshow(stamp.array + residual_image_gs[bounds].array, cmap='gnuplot2', interpolation='nearest')
             plt.title('Model + Residual')
             plt.axis('off')
             plt.subplot(166)
-            plt.imshow(psf_stamp.array, cmap='afmhot', interpolation='nearest')
+            plt.imshow(psf_stamp.array, cmap='gnuplot2', interpolation='nearest')
             plt.title('CLEAN PSF')
             plt.axis('off')
             plt.subplot(165)
-            plt.imshow(dirty_psf_stamp, cmap='afmhot', interpolation='nearest')
+            plt.imshow(dirty_psf_stamp, cmap='gnuplot2', interpolation='nearest')
             plt.title('Dirty PSF')
             plt.axis('off')
             plt.savefig(config.get('output', 'output_plot_dir')+'/source_{0}_mode_{1}_rot_{2}.png'.format(source_i, mod_e, theta), dpi=160, bbox_inches='tight')

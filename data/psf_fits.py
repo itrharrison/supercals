@@ -14,8 +14,11 @@ plt.close('all') # tidy up any unshown plots
 
 from astropy.io import fits
 
-psf = fits.getdata('level2-emerlin-100times-composite-noagn-psf.fits')
-psf_header = fits.getheader('level2-emerlin-100times-composite-noagn-psf.fits')
+#psf = fits.getdata('level2-emerlin-100times-composite-noagn-psf.fits')
+#psf_header = fits.getheader('level2-emerlin-100times-composite-noagn-psf.fits')
+
+psf = fits.getdata('/local/scratch/harrison/simuCLASS/level2-emerlin-100times-composite-noagn-uniform-psf.fits')
+psf_header = fits.getheader('/local/scratch/harrison/simuCLASS/level2-emerlin-100times-composite-noagn-uniform-psf.fits')
 
 npix = 32
 psize = int(psf.shape[-1])
