@@ -61,19 +61,6 @@ def runSuperCal(config):
   residual_image = fits.getdata(residual_fname)[0,0]
   clean_image = fits.getdata(clean_fname)[0,0]
   dirty_psf_image = fits.getdata(dirty_psf_fname)[0,0]
-
-  # get the beam information
-  clean_image_header = fits.getheader(clean_fname)
-  bmaj = clean_image_header['BMAJ']*galsim.degrees
-  bmin = clean_image_header['BMIN']*galsim.degrees
-  bpa = clean_image_header['BPA']*galsim.degrees
-  
-  clean_psf_q = bmin/bmaj
-  clean_psf_pa = bpa
-  clean_psf_fwhm = bmaj
-
-  clean_psf = galsim.Gaussian(fwhm=clean_psf_fwhm/galsim.arcsec)
-  clean_psf = clean_psf.shear(q=clean_psf_q, beta=clean_psf_pa)
   
   # set up wcs
   #w_twod = setup_wcs(config, ndim=2)
@@ -86,6 +73,35 @@ def runSuperCal(config):
   
   residual_image_gs = galsim.ImageF(image_size, image_size, scale=pix_scale)
   im_center = residual_image_gs.bounds.trueCenter()
+
+  # get the beam information
+  clean_image_header = fits.getheader(clean_fname)
+  bmaj = clean_image_header['BMAJ']*galsim.degrees
+  bmin = clean_image_header['BMIN']*galsim.degrees
+  bpa = clean_image_header['BPA']*galsim.degrees - 90*galsim.degrees
+  
+  clean_psf_q = (bmin/galsim.degrees)/(bmaj/galsim.degrees)
+  clean_psf_pa = bpa
+  clean_psf_fwhm = bmaj
+
+  clean_psf = galsim.Gaussian(fwhm=clean_psf_fwhm/galsim.arcsec)
+  clean_psf = clean_psf.shear(q=clean_psf_q, beta=clean_psf_pa)
+  
+  # create a gaussian hsm beam
+  moms = galsim.hsm.FindAdaptiveMom(galsim.Image(dirty_psf_image, scale=pix_scale/galsim.arcsec))
+  hsm_psf_sigma = moms.moments_sigma
+  hsm_psf_e1 = moms.observed_shape.e1
+  hsm_psf_e2 = moms.observed_shape.e2
+  hsm_psf_e = np.sqrt(hsm_psf_e1**2. + hsm_psf_e2**2.)
+  hsm_psf_q = (1. - hsm_psf_e)/(1. + hsm_psf_e)
+  hsm_psf_pa = 0.5*np.arctan2(hsm_psf_e2, hsm_psf_e1)*galsim.radians
+
+  hsm_psf = galsim.Gaussian(moms.moments_sigma)
+  hsm_psf = hsm_psf.shear(moms.observed_shape)
+  hsm_psf_fwhm = (pix_scale/galsim.arcsec)*hsm_psf.calculateFWHM()*galsim.arcsec
+  hsm_psf = galsim.Gaussian(fwhm=hsm_psf_fwhm/galsim.arcsec)
+  #hsm_psf = hsm_psf.shear(moms.observed_shape)
+  hsm_psf = hsm_psf.shear(q=hsm_psf_q, beta=hsm_psf_pa)
 
   # Create a WCS for the galsim image
   residual_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
@@ -133,9 +149,13 @@ def runSuperCal(config):
         print('----------------||--------------------')
         for o_i, theta in enumerate(orientations):
           
+          if (mod_e == 0.0) and (o_i > 0):
+            continue
+          
           gal_gauss = galsim.Gaussian(fwhm=source['Maj']*galsim.degrees/galsim.arcsec, flux=source['Total_flux'])
           hlr = gal_gauss.getHalfLightRadius()
-          gal = galsim.Exponential(half_light_radius=hlr, flux=source['Total_flux'])
+          #gal = galsim.Exponential(half_light_radius=hlr, flux=source['Total_flux'])
+          gal = galsim.Sersic(n=6.2, half_light_radius=hlr, flux=source['Total_flux'])
           
           e1 = mod_e*np.cos(2.*theta)
           e2 = mod_e*np.sin(2.*theta)
@@ -173,17 +193,21 @@ def runSuperCal(config):
           options['sersics_x0_max'] = stamp_size
           options['sersics_y0_max'] = stamp_size
           stamp = obsgal.drawImage(nx=stamp_size, ny=stamp_size, scale=pix_scale/galsim.arcsec, offset=offset)
-          
-          clean_psf_image = galsim.Image(stamp_size, stamp_size, scale=pix_scale)
+                  
+          dirty_psf_stamp = dirty_psf_image[dirty_psf_image.shape[0]/2 - stamp_size/2:dirty_psf_image.shape[0]/2 + stamp_size/2, dirty_psf_image.shape[1]/2 - stamp_size/2:dirty_psf_image.shape[1]/2 + stamp_size/2]
+
+          clean_psf_image = galsim.Image(stamp_size, stamp_size, scale=pix_scale/galsim.arcsec)
           clean_psf_stamp = clean_psf.drawImage(image=clean_psf_image)
+          '''
+          clean_psf_stamp = galsim.Image(dirty_psf_stamp, scale=pix_scale/galsim.arcsec)
+          '''
           clean_psf_stamp_array = clean_psf_stamp.array
           clean_psf_stamp_array = clean_psf_stamp_array/clean_psf_stamp_array.max()
           
           #psf_stamp = psf.drawImage(nx=stamp_size, ny=stamp_size, scale=pix_scale/galsim.arcsec, offset=offset)
-          dirty_psf_stamp = dirty_psf_image[dirty_psf_image.shape[0]/2 - stamp_size/2:dirty_psf_image.shape[0]/2 + stamp_size/2, dirty_psf_image.shape[1]/2 - stamp_size/2:dirty_psf_image.shape[1]/2 + stamp_size/2]
           
           stamp.setCenter(ix, iy)
-          psf_stamp.setCenter(ix, iy)
+          clean_psf_stamp.setCenter(ix, iy)
           #flux_correction = source['Peak_flux']/stamp.array.max()
           #stamp = stamp*flux_correction
           
@@ -212,40 +236,48 @@ def runSuperCal(config):
           flux_correction = flux_in_source/np.sum(stamp.array)
           stamp = stamp*flux_correction
           
+          image_to_measure = stamp[bounds] + residual_image_gs[bounds]
+          
           if config.get('ring', 'doplots') and g_i==0:
-            pdb.set_trace()
+            plt.close('all')
             plt.figure(1)
             plt.subplot(161)
             plt.imshow(clean_image[bounds].array, cmap='gnuplot2', interpolation='nearest')
+            plt.text(10,10,str(np.sum(clean_image[bounds].array)), color='white')
             plt.title('CLEAN')
             plt.axis('off')
             plt.subplot(162)
             plt.imshow(residual_image_gs[bounds].array, cmap='gnuplot2', interpolation='nearest')
+            plt.text(10,10,str(np.sum(residual_image_gs[bounds].array)), color='white')
             plt.title('Residual')
             plt.axis('off')
             plt.subplot(163)
             plt.imshow(stamp.array, cmap='gnuplot2', interpolation='nearest')
+            plt.text(10,10,str(np.sum(stamp.array)), color='white')
             plt.title('Model')
             plt.axis('off')
             plt.subplot(164)
-            plt.imshow(stamp.array + residual_image_gs[bounds].array, cmap='gnuplot2', interpolation='nearest')
+            plt.imshow(image_to_measure.array, cmap='gnuplot2', interpolation='nearest')
+            plt.text(10,10,str(np.sum(image_to_measure.array)), color='white')
             plt.title('Model + Residual')
             plt.axis('off')
             plt.subplot(166)
             plt.imshow(clean_psf_stamp.array, cmap='gnuplot2', interpolation='nearest')
+            plt.text(10,10,str(np.sum(clean_psf_stamp.array)), color='white')
             plt.title('CLEAN PSF')
             plt.axis('off')
             plt.subplot(165)
             plt.imshow(dirty_psf_stamp, cmap='gnuplot2', interpolation='nearest')
+            plt.text(10,10,str(np.sum(dirty_psf_stamp)), color='white')
             plt.title('Dirty PSF')
             plt.axis('off')
             plt.savefig(config.get('output', 'output_plot_dir')+'/source_{0}_mode_{1}_rot_{2}.png'.format(source_i, mod_e, theta), dpi=160, bbox_inches='tight')
                       
-          stamp[bounds] += residual_image_gs[bounds]
+          
           
           weight = np.ones_like(stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
-          result, best_fit = analyze(stamp.array, clean_psf_stamp.array, options, weight=weight, ID=idx)
+          result, best_fit = analyze(image_to_measure.array, clean_psf_stamp.array, options, weight=weight, ID=idx)
           result = result.as_dict(0, count_varied_params(options))
           radius = result[0]['radius']
           # convert between im3shape and galsim ellipticity definitions
