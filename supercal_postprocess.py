@@ -29,11 +29,65 @@ from astropy import wcs
 
 plt.close('all') # tidy up any unshown plots
 
-def make_m_and_c(config):
+def calculate_corrected_ellipticity(source, config):
+
+  source_cat_fname = config.get('output', 'source_cat_dir')+'/{0}'.format(source['Source_id'])
+  source_cat = Table.read(source_cat_fname, format='fits')
+  
+
+
+  
+
+def make_m_and_c(source, config):
   
   def flin(x, m, c):
     return m*x + c
 
+  '''
+  - read wl gold catalogue
+  - for a given source in wl-gold catalogue:
+    - for all the pointings for that source:
+      - calculate the m and c for that source in that pointing
+      - calculate the corrected ellipticity
+      - calculate the error on the corrected ellipticity
+    - calculate the mean averaged (inverse variance weighted?) corrected ellipticity over all pointings
+  
+  '''
+
+  pointing_cat_fname = config.get('output', 'output_cat_dir')+'/{0}-supercal.fits'.format(source['Source_id'])
+  source_cat_fname = config.get('output', 'source_cat_dir')+'/{0}'.format(source['Source_id'])
+
+  input_cat = Table.read(pointing_cat_fname, format='fits')
+  output_cat = Table.read(source_cat_fname, format='fits')
+
+  popt_e1, pcov_e1 = curve_fit(flin, pointing_cat['e1_inp'], pointing_cat['e1'] - pointing_cat['e1_inp'])
+  popt_e2, pcov_e2 = curve_fit(flin, pointing_cat['e2_inp'], pointing_cat['e2'] - pointing_cat['e2_inp'])
+  perr_e1 = np.sqrt(np.diag(pcov_e1))
+  perr_e2 = np.sqrt(np.diag(pcov_e2))
+
+  m_e1 = popt_e1[0]
+  c_e1 = popt_e1[1]
+  sigma2_m_e1 = perr_e1[0]**2.
+  sigma2_c_e1 = perr_e1[1]**2.
+
+  m_e2 = popt_e2[0]
+  c_e2 = popt_e2[1]
+  sigma2_m_e2 = perr_e2[0]**2.
+  sigma2_c_e2 = perr_e2[1]**2.
+
+  source['e1_corrected'] = (source['e1_obs'] - c_e1)/(1.e0 + m_e1)
+  source['e2_corrected'] = (source['e2_obs'] - c_e2)/(1.e0 + m_e2)
+  
+  # im3shape is a maximum likelihood code and doesn't give any output about the curvature...
+  sigma2_e1 = 0.e0
+  sigma2_e2 = 0.e0
+
+  source['sigma2_e1_corrected'] = (sigma2_e1 + sigma2_c_e1 + sigma2_m_e1*((c_e1 - source['e1_obs'])/(1.e0 + m_e1))**2.)/(1.e0 + m_e1)**2.
+  source['sigma2_e2_corrected'] = (sigma2_e2 + sigma2_c_e2 + sigma2_m_e2*((c_e2 - source['e2_obs'])/(1.e0 + m_e2))**2.)/(1.e0 + m_e2)**2.
+
+  output_cat.add_row([m_e1, c_e1, sigma2_m_e1, sigma2_c_e1,
+                      m_e2, c_e2, sigma2_m_e2, sigma2_c_e2])
+  '''
   cat = Table.read(config.get('input', 'catalogue'), format='fits')
   cat_snr = cat['Peak_flux']/cat['Resid_Isl_rms']
   cat = cat[cat_snr > config.getfloat('input', 'snr_cut')]
@@ -85,6 +139,8 @@ def make_m_and_c(config):
                      cat_supercals_cols['E_supercals_c_e2']])
   
   cat.write(config.get('input', 'catalogue'), format='fits', overwrite=True)
+
+  '''
 
 def make_ein_eout_plots(source, m_e1, c_e1, m_e2, c_e2, fname, stamp=None):
 

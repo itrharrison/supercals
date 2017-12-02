@@ -8,7 +8,9 @@ from math import ceil
 
 from astropy.io import fits
 from astropy.table import Table
+import astropy.table as tb
 from astropy import wcs
+from astropy.nddata import Cutout2D
 
 import galsim
 
@@ -25,6 +27,31 @@ def get_stamp_size(source, pix_scale):
   stamp_size = ceil(stamp_size/2.) *2  
   
   return int(stamp_size)
+
+def processResult(source, result, best_fit):
+  result = result.as_dict(0, count_varied_params(options))
+  radius = result[0]['radius']
+  # convert between im3shape and galsim ellipticity definitions
+  g1_obs = result[0]['e1']
+  g2_obs = result[0]['e2']
+
+  g_obs = np.sqrt(g1_obs**2. + g2_obs**2.)
+  q_obs = (1. - g_obs)/(1. + g_obs)
+
+  e_obs = (1. - q_obs**2.)/(1. + q_obs**2.)
+
+  e1_obs = g1_obs*e_obs/g_obs
+  e2_obs = g2_obs*e_obs/g_obs
+
+  snr = result[0]['snr']
+  likelihood = result[0]['likelihood']
+  disc_A = result[0]['disc_A']
+  disc_flux = result[0]['disc_flux']
+
+  retvar = Table([source['Source_id'], mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs, radius, snr, likelihood, disc_A, disc_flux], names=('Source_id', 'mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp', 'e1', 'e2', 'radius', 'snr', 'likelihood', 'disc_A', 'disc_flux'))
+
+  return retvar
+
 
 def runSuperCal(config):
   '''
@@ -230,7 +257,6 @@ def runSuperCal(config):
             idx += 1
             
             continue
-            
           
           flux_in_source = np.sum((clean_image[bounds].array)-(residual_image_gs[bounds].array))
           flux_correction = flux_in_source/np.sum(stamp.array)
@@ -278,33 +304,21 @@ def runSuperCal(config):
           weight = np.ones_like(stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
           result, best_fit = analyze(image_to_measure.array, clean_psf_stamp.array, options, weight=weight, ID=idx)
-          result = result.as_dict(0, count_varied_params(options))
-          radius = result[0]['radius']
-          # convert between im3shape and galsim ellipticity definitions
-          g1_obs = result[0]['e1']
-          g2_obs = result[0]['e2']
+          results_row = processResult(source, result, best_fit)            
+          output_cat.add_row(results_row)
 
-          g_obs = np.sqrt(g1_obs**2. + g2_obs**2.)
-          q_obs = (1. - g_obs)/(1. + g_obs)
-          
-          e_obs = (1. - q_obs**2.)/(1. + q_obs**2.)
-          
-          e1_obs = g1_obs*e_obs/g_obs
-          e2_obs = g2_obs*e_obs/g_obs
-
-          snr = result[0]['snr']
-          likelihood = result[0]['likelihood']
-          disc_A = result[0]['disc_A']
-          disc_flux = result[0]['disc_flux']
-          
-          output_cat.add_row([source['Source_id'], mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs, radius, snr, likelihood, disc_A, disc_flux])
+          if g_i == 0:
+            # also measure the actual shape in the clean image
+            result, best_fit = analyze(clean_image[bounds].array, clean_psf_stamp.array, options, weight=weight, ID=idx)
+            results_row = processResult(source, result, best_fit)            
+            tb.join(input_cat, results_row, keys=source['Source_id'])
           
           print(('%.3f' % e1)+'\t'+('%.3f' % e1_obs)+'\t||\t'+('%.3f' % e2)+'\t'+('%.3f' % e2_obs))
           
           idx += 1
         print('----------------||--------------------')
   
-    cat_fname = config.get('output', 'output_cat_dir')+'/{0}_supercal_output.fits'.format(source['Source_id'])
+    cat_fname = config.get('output', 'output_cat_dir')+'/{0}-supercal.fits'.format(source['Source_id'])
     output_cat.write(cat_fname, format='fits', overwrite=True)
     
     t_sourceend = time.time()
@@ -327,6 +341,6 @@ def runSuperCal(config):
     
 if __name__ == '__main__':
   config = ConfigParser.ConfigParser()
-  config.read(sys.argv[-1])
+  config.read(§argv[-1])
   
   runSuperCal(config)
