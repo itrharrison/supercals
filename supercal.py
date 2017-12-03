@@ -2,15 +2,15 @@ import pdb
 import ConfigParser
 import numpy as np
 import sys
+import os
 import time
 import cPickle as pickle
 from math import ceil
 
 from astropy.io import fits
-from astropy.table import Table
+from astropy.table import Table, join
 import astropy.table as tb
 from astropy import wcs
-from astropy.nddata import Cutout2D
 
 import galsim
 
@@ -21,6 +21,8 @@ from skymodel.skymodel_tools import setup_wcs
 from matplotlib import pyplot as plt
 plt.close('all')
 
+def check_in_pointing()
+
 def get_stamp_size(source, pix_scale):
 
   stamp_size = 10.* (source['Maj']*galsim.degrees / galsim.arcsec) / (pix_scale / galsim.arcsec)
@@ -28,7 +30,13 @@ def get_stamp_size(source, pix_scale):
   
   return int(stamp_size)
 
-def processResult(source, result, best_fit):
+def processResult(config, source, result, best_fit):
+  
+  from py3shape.analyze import analyze, count_varied_params
+  from py3shape.options import Options
+  
+  options = Options(config.get('im3shape', 'ini_file'))
+  
   result = result.as_dict(0, count_varied_params(options))
   radius = result[0]['radius']
   # convert between im3shape and galsim ellipticity definitions
@@ -48,7 +56,8 @@ def processResult(source, result, best_fit):
   disc_A = result[0]['disc_A']
   disc_flux = result[0]['disc_flux']
 
-  retvar = Table([source['Source_id'], mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs, radius, snr, likelihood, disc_A, disc_flux], names=('Source_id', 'mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp', 'e1', 'e2', 'radius', 'snr', 'likelihood', 'disc_A', 'disc_flux'))
+  retvar = Table([[source['Source_id']], [g1_obs], [g2_obs], [e1_obs], [e2_obs], [radius], [snr], [likelihood], [disc_A], [disc_flux]],
+             names=('Source_id', 'g1_obs', 'g2_obs', 'e1_obs', 'e2_obs', 'radius', 'snr', 'likelihood', 'disc_A', 'disc_flux'))
 
   return retvar
 
@@ -78,6 +87,13 @@ def runSuperCal(config):
   
   # load catalogue positions
   cat = Table.read(config.get('input', 'catalogue'), format='fits')
+  
+  # ToDo: make this unnecessary.
+  if 'Source_id_1' in cat.colnames:
+    for colname in cat.colnames:
+      if colname.endswith('_1'):
+        cat[colname].name = colname.replace('_1', '')
+  
   cat_snr = cat['Peak_flux']/cat['Resid_Isl_rms']
   cat = cat[cat_snr > config.getfloat('input', 'snr_cut')]
   
@@ -157,7 +173,9 @@ def runSuperCal(config):
 
   for source_i, source in enumerate(cat):
     t_sourcestart = time.time()
-    output_cat = Table(names=('Source_id', 'mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp', 'e1', 'e2', 'radius', 'snr', 'likelihood', 'disc_A', 'disc_flux'))
+    if not os.path.exists(config.get('output', 'output_cat_dir')):
+      os.makedirs(config.get('output', 'output_cat_dir'))
+    output_cat = Table(names=('Source_id', 'mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp'))
     output_cat['theta_g'].unit = 'rad'
     output_cat['theta_e'].unit = 'rad'
     print('######################################')
@@ -190,6 +208,11 @@ def runSuperCal(config):
           g1 = mod_g*np.cos(2.*shear_theta)
           g2 = mod_g*np.sin(2.*shear_theta)
           
+          output_row = Table([[source['Source_id']], [mod_g], [shear_theta], [mod_e], [theta], [g1], [g2], [e1], [e2]], names=('Source_id', 'mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp'))
+          if len(output_cat)==0:
+            output_cat = output_row
+          else:
+            output_cat = tb.join(output_cat, output_row)          
           ellipticity = galsim.Shear(e1=e1, e2=e2)
           shear = galsim.Shear(g1=g1, g2=g2)
           total_shear = ellipticity + shear
@@ -240,7 +263,7 @@ def runSuperCal(config):
           
           # Add the flux from the residual image to the sub-image
           bounds = stamp.bounds & residual_image_gs.bounds
-          if residual_image[bounds].bounds != stamp.bounds:
+          if (bounds.xmin == bounds.xmax == 0):
           
             e1_obs = np.nan
             e2_obs = np.nan
@@ -250,7 +273,11 @@ def runSuperCal(config):
             disc_A = np.nan
             disc_flux = np.nan
             
-            output_cat.add_row([source['Source_id'], mod_g, shear_theta, mod_e, theta, g1, g2, e1, e2, e1_obs, e2_obs, radius, snr, likelihood, disc_A, disc_flux])
+            output_row = Table([[source['Source_id']], [mod_g], [shear_theta], [mod_e], [theta], [g1], [g2], [e1], [e2]], names=('Source_id', 'mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp'))
+            if len(output_cat)==0:
+              output_cat = output_row
+            else:
+              output_cat = tb.join(output_cat, output_row)  
           
             print(('%.3f' % e1)+'\t'+('%.3f' % e1_obs)+'\t||\t'+('%.3f' % e2)+'\t'+('%.3f' % e2_obs))
           
@@ -297,27 +324,28 @@ def runSuperCal(config):
             plt.text(10,10,str(np.sum(dirty_psf_stamp)), color='white')
             plt.title('Dirty PSF')
             plt.axis('off')
-            plt.savefig(config.get('output', 'output_plot_dir')+'/source_{0}_mode_{1}_rot_{2}.png'.format(source_i, mod_e, theta), dpi=160, bbox_inches='tight')
+            plt.savefig(config.get('output', 'output_cat_dir')+'/source_{0}_mode_{1}_rot_{2}.png'.format(source_i, mod_e, theta), dpi=160, bbox_inches='tight')
                       
           
           
           weight = np.ones_like(stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
           result, best_fit = analyze(image_to_measure.array, clean_psf_stamp.array, options, weight=weight, ID=idx)
-          results_row = processResult(source, result, best_fit)            
-          output_cat.add_row(results_row)
+          results_row = processResult(config, source, result, best_fit)            
+          join(output_cat, results_row)
 
           if g_i == 0:
             # also measure the actual shape in the clean image
             result, best_fit = analyze(clean_image[bounds].array, clean_psf_stamp.array, options, weight=weight, ID=idx)
-            results_row = processResult(source, result, best_fit)            
-            tb.join(input_cat, results_row, keys=source['Source_id'])
+            results_row = processResult(config, source, result, best_fit)            
+            output_cat = tb.join(output_cat, results_row)
           
           print(('%.3f' % e1)+'\t'+('%.3f' % e1_obs)+'\t||\t'+('%.3f' % e2)+'\t'+('%.3f' % e2_obs))
           
           idx += 1
         print('----------------||--------------------')
   
+    
     cat_fname = config.get('output', 'output_cat_dir')+'/{0}-supercal.fits'.format(source['Source_id'])
     output_cat.write(cat_fname, format='fits', overwrite=True)
     
@@ -341,6 +369,6 @@ def runSuperCal(config):
     
 if __name__ == '__main__':
   config = ConfigParser.ConfigParser()
-  config.read(§argv[-1])
+  config.read(sys.argv[-1])
   
   runSuperCal(config)

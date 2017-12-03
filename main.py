@@ -1,6 +1,6 @@
 import numpy as np
 import sys
-import configparser
+import ConfigParser
 
 from supercal import *
 from supercal_postprocess import *
@@ -9,15 +9,16 @@ config = ConfigParser.ConfigParser()
 config.read(sys.argv[-1])
 
 wl_catalogue = config.get('survey', 'wl_catalogue')
-pointing_list = config.get('survey', 'pointing_list')
+pointing_rootdir = config.get('survey', 'pointing_root_directory')
+pointing_list = [config.get('survey', 'pointing_list')]
 
 for pointing in pointing_list:
-
+  pointing_fname_root = pointing_rootdir+'/'+pointing+'/'+pointing+'_Peeled_natw'
   config.set('input', 'catalogue', wl_catalogue)
-  config.set('input', 'residual_image', pointing+'-residual.fits')
-  config.set('input', 'clean_image', pointing+'-image.fits')
-  config.set('input', 'psf_image', pointing+'-psf.fits')
-  config.set('output', 'output_cat_dir', pointing+'/supercal-output/')
+  config.set('input', 'residual_image', pointing_fname_root+'-residual.fits')
+  config.set('input', 'clean_image', pointing_fname_root+'-image.fits')
+  config.set('input', 'psf_image', pointing_fname_root+'-psf.fits')
+  config.set('output', 'output_cat_dir', pointing_fname_root+'/supercal-output/')
   
   runSuperCal(config)
   # need to think about this
