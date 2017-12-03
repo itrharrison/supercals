@@ -21,7 +21,11 @@ from skymodel.skymodel_tools import setup_wcs
 from matplotlib import pyplot as plt
 plt.close('all')
 
-def check_in_pointing()
+def source_in_pointing(source, wcs_twod):
+
+  x, y = w_twod.wcs_world2pix(source['RA'], source['DEC'], 0,)
+  pdb.set_trace()
+  return True
 
 def get_stamp_size(source, pix_scale):
 
@@ -173,6 +177,10 @@ def runSuperCal(config):
 
   for source_i, source in enumerate(cat):
     t_sourcestart = time.time()
+
+    if not source_in_pointing(source, w_twod):
+      continue
+
     if not os.path.exists(config.get('output', 'output_cat_dir')):
       os.makedirs(config.get('output', 'output_cat_dir'))
     output_cat = Table(names=('Source_id', 'mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp'))
