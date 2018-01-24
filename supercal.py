@@ -18,6 +18,8 @@ sys.path.append('../simuclass')
 
 from skymodel.skymodel_tools import setup_wcs
 
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 plt.close('all')
 
@@ -124,11 +126,17 @@ def runSuperCal(config):
   w_fourd = wcs.WCS(config.get('input', 'clean_image'))
   w_twod = w_fourd.dropaxis(3).dropaxis(2)
   header_twod = w_twod.to_header()
-  
-  pix_scale = np.abs(header_twod['CDELT1'])*galsim.degrees
   image_size = clean_image.shape[0]
+  pix_scale = np.abs(header_twod['CDELT1'])*galsim.degrees
+  
+  dirty_psf_image_gs = galsim.ImageF(image_size, image_size, scale=pix_scale)
+  #dirty_psf_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
+  #dirty_psf_image_gs.wcs = galsim.wcs.UniformWCS()
+  dirty_psf_image_gs += galsim.ImageF(dirty_psf_image)
   
   residual_image_gs = galsim.ImageF(image_size, image_size, scale=pix_scale)
+  
+  
   im_center = residual_image_gs.bounds.trueCenter()
 
   # get the beam information
@@ -161,6 +169,9 @@ def runSuperCal(config):
     #hsm_psf = hsm_psf.shear(moms.observed_shape)
     hsm_psf = hsm_psf.shear(q=hsm_psf_q, beta=hsm_psf_pa)
     clean_psf = hsm_psf
+  elif (config.get('survey', 'psf_mode')=='dirty'):
+    clean_psf = galsim.FitShapelet(1, 6, dirty_psf_image_gs, dirty_psf_image_gs.center())
+    
 
   # Create a WCS for the galsim image
   residual_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
@@ -191,6 +202,8 @@ def runSuperCal(config):
   
   if not os.path.exists(config.get('output', 'output_cat_dir')):
     os.makedirs(config.get('output', 'output_cat_dir'))
+  if not os.path.exists(config.get('output', 'output_plot_dir')):
+    os.makedirs(config.get('output', 'output_plot_dir'))
 
   for source_i, source in enumerate(cat):
   
@@ -398,7 +411,7 @@ def runSuperCal(config):
             plt.xlim([0,166])
             
             fig.subplots_adjust(hspace=0, wspace=0)
-            plt.savefig(config.get('output', 'output_cat_dir')+'/source_{0}_mode_{1}_rot_{2}.png'.format(source_i, mod_e, theta), dpi=300, bbox_inches='tight')
+            plt.savefig(config.get('output', 'output_plot_dir')+'/source_{0}_mode_{1}_rot_{2}.png'.format(source_i, mod_e, theta), dpi=300, bbox_inches='tight')
                       
           weight = np.ones_like(stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
