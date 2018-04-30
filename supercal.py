@@ -5,10 +5,11 @@ import sys
 import os
 import time
 import cPickle as pickle
+import pdb
 from math import ceil
 
 from astropy.io import fits
-from astropy.table import Table, join
+from astropy.table import Table, join, Column
 import astropy.table as tb
 from astropy import wcs
 
@@ -116,10 +117,10 @@ def runSuperCal(config):
   # load residual image
   residual_fname = config.get('input', 'residual_image')
   clean_fname = config.get('input', 'clean_image')
-  dirty_psf_fname = config.get('input', 'psf_image')
+  #dirty_psf_fname = config.get('input', 'psf_image')
   residual_image = fits.getdata(residual_fname)[0,0]
   clean_image = fits.getdata(clean_fname)[0,0]
-  dirty_psf_image = fits.getdata(dirty_psf_fname)[0,0]
+  #dirty_psf_image = fits.getdata(dirty_psf_fname)[0,0]
   
   # set up wcs
   #w_twod = setup_wcs(config, ndim=2)
@@ -129,10 +130,10 @@ def runSuperCal(config):
   image_size = clean_image.shape[0]
   pix_scale = np.abs(header_twod['CDELT1'])*galsim.degrees
   
-  dirty_psf_image_gs = galsim.ImageF(image_size, image_size, scale=pix_scale)
+  #dirty_psf_image_gs = galsim.ImageF(image_size, image_size, scale=pix_scale)
   #dirty_psf_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
   #dirty_psf_image_gs.wcs = galsim.wcs.UniformWCS()
-  dirty_psf_image_gs += galsim.ImageF(dirty_psf_image)
+  #dirty_psf_image_gs += galsim.ImageF(dirty_psf_image)
   
   residual_image_gs = galsim.ImageF(image_size, image_size, scale=pix_scale)
   
@@ -149,9 +150,9 @@ def runSuperCal(config):
     clean_psf_q = (bmin/galsim.degrees)/(bmaj/galsim.degrees)
     clean_psf_pa = bpa
     clean_psf_fwhm = bmaj
-
     clean_psf = galsim.Gaussian(fwhm=clean_psf_fwhm/galsim.arcsec)
     clean_psf = clean_psf.shear(q=clean_psf_q, beta=clean_psf_pa)
+  '''
   elif (config.get('survey', 'psf_mode')=='hsm'):
     # create a gaussian hsm beam
     moms = galsim.hsm.FindAdaptiveMom(galsim.Image(dirty_psf_image, scale=pix_scale/galsim.arcsec))
@@ -171,6 +172,7 @@ def runSuperCal(config):
     clean_psf = hsm_psf
   elif (config.get('survey', 'psf_mode')=='dirty'):
     clean_psf = galsim.FitShapelet(1, 6, dirty_psf_image_gs, dirty_psf_image_gs.center())
+  '''
     
 
   # Create a WCS for the galsim image
@@ -197,7 +199,7 @@ def runSuperCal(config):
   e2_in_arr = np.array([])
   
   idx=0
-  image_output_cat = Table(names=image_output_columns)
+  image_output_cat = Table(names=image_output_columns,  dtype=['S27']+(len(image_output_columns)-1)*[float])
   image_output_cat_fname = config.get('output', 'output_cat_dir')+'/uncalibrated-shape-catalogue.fits'
   
   if not os.path.exists(config.get('output', 'output_cat_dir')):
@@ -220,7 +222,7 @@ def runSuperCal(config):
     
     calibration_cat_fname = config.get('output', 'output_cat_dir')+'/{0}-supercal.fits'.format(source['Source_id'])
     
-    calibration_output_cat = Table(names=calibration_output_columns)
+    calibration_output_cat = Table(names=calibration_output_columns, dtype=['S27']+(len(calibration_output_columns)-1)*[float])
     #output_cat = Table(names=('Source_id', 'mod_g', 'theta_g', 'mod_e', 'theta_e', 'g1_inp', 'g2_inp', 'e1_inp', 'e2_inp'))
     #output_cat['theta_g'].unit = 'rad'
     #output_cat['theta_e'].unit = 'rad'
@@ -290,7 +292,7 @@ def runSuperCal(config):
           model_stamp = gal.drawImage(nx=stamp_size, ny=stamp_size, scale=pix_scale/galsim.arcsec, offset=offset)
           stamp = obsgal.drawImage(nx=stamp_size, ny=stamp_size, scale=pix_scale/galsim.arcsec, offset=offset)
                   
-          dirty_psf_stamp = dirty_psf_image[dirty_psf_image.shape[0]/2 - stamp_size/2:dirty_psf_image.shape[0]/2 + stamp_size/2, dirty_psf_image.shape[1]/2 - stamp_size/2:dirty_psf_image.shape[1]/2 + stamp_size/2]
+          #dirty_psf_stamp = dirty_psf_image[dirty_psf_image.shape[0]/2 - stamp_size/2:dirty_psf_image.shape[0]/2 + stamp_size/2, dirty_psf_image.shape[1]/2 - stamp_size/2:dirty_psf_image.shape[1]/2 + stamp_size/2]
 
           clean_psf_image = galsim.Image(stamp_size, stamp_size, scale=pix_scale/galsim.arcsec)
           clean_psf_stamp = clean_psf.drawImage(image=clean_psf_image)
@@ -355,7 +357,7 @@ def runSuperCal(config):
             plt.title('CLEAN PSF')
             plt.axis('off')
             plt.subplot(2,7,7, sharey=ax2)
-            plt.imshow(dirty_psf_stamp, cmap='gnuplot2', interpolation='nearest', origin='lower')
+            #plt.imshow(dirty_psf_stamp, cmap='gnuplot2', interpolation='nearest', origin='lower')
             plt.title('Dirty PSF')
             plt.axis('off')
             ax1 = plt.subplot(278)
@@ -402,8 +404,8 @@ def runSuperCal(config):
             f.axes.xaxis.set_ticklabels([])
             #plt.text(10,10,str(np.sum(clean_psf_stamp.array)), color='white')
             plt.subplot(2,7,14, sharex=ax1, sharey=ax1)
-            dirty_psf_oned = dirty_psf_stamp[dirty_psf_stamp.shape[0]/2,:]
-            plt.plot(dirty_psf_oned*(source_peak/dirty_psf_oned.max()))
+            #dirty_psf_oned = dirty_psf_stamp[dirty_psf_stamp.shape[0]/2,:]
+            #plt.plot(dirty_psf_oned*(source_peak/dirty_psf_oned.max()))
             f = plt.gca()
             f.axes.yaxis.set_ticklabels([])
             f.axes.xaxis.set_ticklabels([])
@@ -415,24 +417,49 @@ def runSuperCal(config):
                       
           weight = np.ones_like(stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
-          result, best_fit = analyze(image_to_measure.array, clean_psf_stamp.array, options, weight=weight, ID=idx)
-          result = processResult(config, source, result, best_fit)
+          if config.get('input', 'measurement_method')=='im3shape':
+            result, best_fit = analyze(image_to_measure.array, clean_psf_stamp.array, options, weight=weight, ID=idx)
+            result = processResult(config, source, result, best_fit) 
+          elif config.get('input', 'measurement_method')=='moments':
+            result = galsim.hsm.FindAdaptiveMom(image_to_measure)
+            result = {'g1_obs' : result.observed_shape.g1,
+                      'g2_obs' : result.observed_shape.g2,
+                      'e1_obs' : result.observed_shape.e1,
+                      'e2_obs' : result.observed_shape.e2,
+                      'radius' : result.moments_sigma,
+                      'snr' : np.nan,
+                      'likelihood' : np.nan,
+                      'disc_A' : np.nan,
+                      'disc_flux' : np.nan}
           calibration_output_cat.add_row([[source['Source_id']], [mod_g], [shear_theta], [mod_e], [theta], [g1], [g2], [e1], [e2], [result['g1_obs']], [result['g2_obs']], [result['e1_obs']], [result['e2_obs']], [result['radius']], [result['snr']], [result['likelihood']], [result['disc_A']], [result['disc_flux']]])
           #join(output_cat, results_row)
+          
+          print(('%.3f' % e1)+'\t'+('%.3f' % result['e1_obs'])+'\t||\t'+('%.3f' % e2)+'\t'+('%.3f' % result['e2_obs']))
 
           if g_i == 0:
             # also measure the actual shape in the clean image
-            result, best_fit = analyze(clean_image[bounds].array, clean_psf_stamp.array, options, weight=weight, ID=idx)
-            result = processResult(config, source, result, best_fit) 
+            if config.get('input', 'measurement_method')=='im3shape':
+              result, best_fit = analyze(clean_image[bounds].array, clean_psf_stamp.array, options, weight=weight, ID=idx)
+              result = processResult(config, source, result, best_fit) 
+            elif config.get('input', 'measurement_method')=='moments':
+              result = galsim.hsm.FindAdaptiveMom(clean_image[bounds])
+              result = {'g1_obs' : result.observed_shape.g1,
+                        'g2_obs' : result.observed_shape.g2,
+                        'e1_obs' : result.observed_shape.e1,
+                        'e2_obs' : result.observed_shape.e2,
+                        'radius' : result.moments_sigma,
+                        'snr' : np.nan,
+                        'likelihood' : np.nan,
+                        'disc_A' : np.nan,
+                        'disc_flux' : np.nan}
             image_output_cat.add_row([[source['Source_id']], [result['g1_obs']], [result['g2_obs']], [result['e1_obs']], [result['e2_obs']], [result['radius']], [result['snr']], [result['likelihood']], [result['disc_A']], [result['disc_flux']]])
             #output_cat = tb.join(output_cat, results_row)
-          
-          print(('%.3f' % e1)+'\t'+('%.3f' % result['e1_obs'])+'\t||\t'+('%.3f' % e2)+'\t'+('%.3f' % result['e2_obs']))
           
           idx += 1
         print('----------------||--------------------')
   
     
+    pdb.set_trace()
     calibration_output_cat.write(calibration_cat_fname, format='fits', overwrite=True)
     
     t_sourceend = time.time()
@@ -453,6 +480,7 @@ def runSuperCal(config):
     print('With an average of '.format(source_i)+('%.2f s' % (n_evals/float(t_sourceend - t_sourcestart)))+'/ring point.')
     print('--------------------------------------')
   
+  pdb.set_trace()
   image_output_cat.write(image_output_cat_fname, format='fits', overwrite=True)
   
 if __name__ == '__main__':
