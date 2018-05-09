@@ -33,10 +33,6 @@ def calculate_corrected_ellipticity(source, config):
 
   source_cat_fname = config.get('output', 'source_cat_dir')+'/{0}'.format(source['Source_id'])
   source_cat = Table.read(source_cat_fname, format='fits')
-  
-
-
-  
 
 def make_m_and_c(source, config):
   
