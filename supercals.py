@@ -159,12 +159,12 @@ def runSuperCal(config):
     if not source_in_pointing(source, w_twod, clean_image.array.shape):
       print('Source {0}/{1} not in pointing {2}. Skipping.'.format(source_i, len(cat), config.get('input', 'pointing_name')))
       continue
-    
+    '''
     if config.get('ring', 'one_source_debug'):
       if not source_i==4:
         print('!!!ONLY RUNNING DEBUG SOURCE!!!')
         continue
-
+    '''
     t_sourcestart = time.time()
     
     calibration_cat_fname = config.get('output', 'output_cat_dir')+'/{0}-supercal.fits'.format(source['Source_id'])
@@ -272,7 +272,7 @@ def runSuperCal(config):
           image_to_measure = stamp[bounds] + residual_image_gs[bounds]
           
           if config.get('ring', 'doplots') and g_i==0:
-            make_source_plot(config, bounds, clean_image, residual_image, model_stamp, stamp, image_to_measure, clean_psf_stamp, source_i, mod_e, theta)
+            make_source_plot(config, bounds, clean_image, residual_image_gs, model_stamp, stamp, image_to_measure, clean_psf_stamp, source, source_i, mod_e, theta)
                       
           weight = np.ones_like(stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
@@ -318,7 +318,6 @@ def runSuperCal(config):
         print('----------------||--------------------')
   
     
-    pdb.set_trace()
     calibration_output_cat.write(calibration_cat_fname, format='fits', overwrite=True)
     
     t_sourceend = time.time()

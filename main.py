@@ -2,8 +2,8 @@ import numpy as np
 import sys
 import ConfigParser
 
-from supercal import *
-from supercal_postprocess import *
+from supercals import *
+from supercals_postprocess import *
 
 config = ConfigParser.ConfigParser()
 config.read(sys.argv[-1])
