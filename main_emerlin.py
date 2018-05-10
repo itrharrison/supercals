@@ -20,8 +20,17 @@ for pointing in pointing_list:
   config.set('input', 'residual_image', pointing_fname_root+'-residual.fits')
   config.set('input', 'clean_image', pointing_fname_root+'-image.fits')
   config.set('input', 'psf_image', pointing_fname_root+'-psf.fits')
-  config.set('output', 'output_cat_dir', pointing_fname_root+'/supercal-output/')
-  config.set('output', 'output_plot_dir', pointing_fname_root+'/supercal-output/')
+
+  if not config.has_option('output', 'output_plot_dir_base'):
+    plot_dir_base = config.get('output', 'output_plot_dir')
+    config.set('output', 'output_plot_dir_base', plot_dir_base)
+
+  if not config.has_option('output', 'output_cat_dir_base'):
+    plot_dir_base = config.get('output', 'output_cat_dir')
+    config.set('output', 'output_cat_dir_base', plot_dir_base)
+
+  config.set('output', 'output_plot_dir', config.get('output', 'output_plot_dir_base')+'/'+pointing+'/')
+  config.set('output', 'output_cat_dir', config.get('output', 'output_cat_dir_base')+'/'+pointing+'/')
   config.set('input', 'pointing_name', pointing)
   
   runSuperCal(config)
