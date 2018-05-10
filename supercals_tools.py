@@ -25,90 +25,43 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import AxesGrid
 plt.close('all')
 
-def make_source_plot(config, bounds, clean_image, residual_image, model_stamp, stamp, image_to_measure, clean_psf_stamp, source, source_i, mod_e, theta):
+def add_source_subplot(grid, i_plot, n_plots, image, label, global_norm=False):
+
+  grid[i_plot].imshow(image, cmap='gnuplot2', interpolation='nearest', origin='lower')
+  grid[i_plot].set_xlim([0,image.shape[0]])
+  grid[i_plot].set_ylim([0,image.shape[1]])
+  grid[i_plot].axis('off')
+
+  grid[i_plot+n_plots].plot(image[:,image.shape[1]/2],'k-')
+  grid[i_plot+n_plots].set_xlim([0,image.shape[0]])
+  if bool(global_norm:)
+    grid[i_plot+n_plots].set_ylim([0,global_norm])
+  grid[i_plot+n_plots].axis('off')
+
+  grid[i_plot].set_title(label, size='x-small')  
+
+def make_source_plot(config, bounds, clean_image, residual_image, model_stamp, obsgal_stamp, image_to_measure, clean_psf_stamp, dirty_psf_stamp, source, source_i, mod_e, theta):
   plt.close('all')
   nplots=2
   fig = plt.figure(1, figsize=(4.5, nplots*3.75))
   grid = AxesGrid(fig, 111,
                   nrows_ncols=(2,nplots),
                   axes_pad=0.0,
-                  share_all=True,
+                  share_all=False,
                   label_mode='L')
 
   source_peak = clean_image[bounds].array.max() - residual_image[bounds].array.max()
   
-  grid[0].imshow(clean_image[bounds].array, cmap='gnuplot2', interpolation='nearest', origin='lower')
-  #grid[0].text(10,10,str(np.sum(clean_image[bounds].array)), color='white')
-  grid[0].set_title('CLEAN')
-  grid[0].axis('off')
+  add_source_subplot(grid, 0, clean_image[bounds].array, 'CLEAN', global_norm=source_peak)
+  add_source_subplot(grid, 1, residual_image[bounds].array, 'Residual', global_norm=source_peak)
+  add_source_subplot(grid, 2, model_stamp.array, 'Model', global_norm=source_peak)
+  add_source_subplot(grid, 3, obsgal_stamp.array, 'Model+PSF', global_norm=source_peak)
+  add_source_subplot(grid, 4, image_to_measure.array, 'Model+PSF+Residual', global_norm=source_peak)
+  add_source_subplot(grid, 5, clean_psf_stamp.array, 'CLEAN PSF', global_norm=source_peak)
+  add_source_subplot(grid, 6, dirty_psf_stamp.array, 'Dirty PSF', global_norm=source_peak)
   
-  grid[0+nplots].plot(clean_image[bounds].array[clean_image[bounds].array.shape[0]/2,:])
-  
-  grid[1].imshow(residual_image[bounds].array, cmap='gnuplot2', interpolation='nearest', origin='lower')
-  grid[1].set_title('Residual')
-  grid[1].axis('off')
-  
-  grid[1+nplots].plot(residual_image[bounds].array[residual_image[bounds].array.shape[0]/2,:])
-  
-  '''
-  
-  grid[1].imshow(residual_image[bounds].array, cmap='gnuplot2', interpolation='nearest', origin='lower')
-  #grid[1].text(10,10,str(np.sum(residual_image_gs[bounds].array)), color='white')
-  grid[1].set_title('Residual')
-  grid[1].axis('off')
-  
-  grid[2].imshow(model_stamp.array, cmap='gnuplot2', interpolation='nearest', origin='lower')
-  #grid[2].text(10,10,str(np.sum(stamp.array)), color='white')
-  grid[2].set_title('Model')
-  grid[2].axis('off')
-  
-  grid[3].imshow(stamp.array, cmap='gnuplot2', interpolation='nearest', origin='lower')
-  #grid[3].text(10,10,str(np.sum(stamp.array)), color='white')
-  grid[3].set_title('Model+PSF')
-  grid[3].axis('off')
-  
-  grid[4].imshow(image_to_measure.array, cmap='gnuplot2', interpolation='nearest', origin='lower')
-  #grid[4].text(10,10,str(np.sum(image_to_measure.array)), color='white')
-  grid[4].set_title('Model+PSF+Residual')
-  grid[4].axis('off')
-  
-  grid[5].imshow(clean_psf_stamp.array, cmap='gnuplot2', interpolation='nearest', origin='lower')
-  grid[5].set_title('CLEAN PSF')
-  grid[5].axis('off')
-  
-  #grid[6].imshow(dirty_psf_stamp, cmap='gnuplot2', interpolation='nearest', origin='lower')
-  grid[6].set_title('Dirty PSF')
-  grid[6].axis('off')
-  
-  grid[7].plot(clean_image[bounds].array[clean_image[bounds].array.shape[0]/2,:])
-  grid[7].set_ylim([0,clean_image[bounds].array.max()])
-  grid[7].set_xlim([0,166])
-  
-  grid[8].plot(residual_image[bounds].array[residual_image[bounds].array.shape[0]/2,:])
-  grid[8].set_ylim([0,clean_image[bounds].array.max()])
-  
-  grid[9].plot(model_stamp.array[model_stamp.array.shape[0]/2,:])
-  grid[9].set_ylim([0,clean_image[bounds].array.max()])
-  
-  grid[10].plot(stamp.array[stamp.array.shape[0]/2,:])
-  grid[10].set_ylim([0,clean_image[bounds].array.max()])
-  
-  grid[11].plot(image_to_measure.array[image_to_measure.array.shape[0]/2,:])
-  grid[11].set_ylim([0,clean_image[bounds].array.max()])
-  
-  clean_psf_oned = clean_psf_stamp.array[clean_psf_stamp.array.shape[0]/2,:]
-  grid[12].plot(clean_psf_oned*(source_peak/clean_psf_oned.max()))
-  
-  #dirty_psf_oned = dirty_psf_stamp[dirty_psf_stamp.shape[0]/2,:]
-  #grid[13].plot(dirty_psf_oned*(source_peak/dirty_psf_oned.max()))
-  #grid[13].set_xlim([0,166])
-  
-  
-  fig.subplots_adjust(hspace=0, wspace=0)
-  pdb.set_trace()
-  '''
-  #plt.suptitle('{0} - {1}'.format(config.get('input', 'clean_image'), source['Source_id']))
-  plt.savefig(config.get('output', 'output_plot_dir')+'/source_{0}_mode_{1}_rot_{2}.png'.format(source_i, mod_e, theta), dpi=300, bbox_inches='tight')
+  plt.suptitle('{0} \n {1}'.format(config.get('input', 'clean_image').split['/'][-1], source['Source_id']), size='x-small')
+  plt.savefig(config.get('output', 'output_plot_dir')+'/{0}_mode_{1}_rot_{2}.png'.format(source['Source_id'], mod_e, theta), dpi=300, bbox_inches='tight')
 
 def source_in_pointing(source, w_twod, npix):
 
