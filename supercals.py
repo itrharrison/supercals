@@ -161,6 +161,7 @@ def runSuperCal(config):
     calibration_output_cat = Table(names=calibration_output_columns, dtype=['S27']+(len(calibration_output_columns)-1)*[float])
 
     print('######################################')
+    print('{0}'.format(source['Source_id']))
     print('Source {0}/{1}:'.format(source_i, len(cat)))
     print('RA: {0}, DEC: {1}'.format(source['RA'], source['DEC']))
     print('Flux: '+('%.3e' % source['Total_flux'])+' Jy')
@@ -180,8 +181,9 @@ def runSuperCal(config):
             continue
           
           gal_gauss = galsim.Gaussian(fwhm=source['Maj']*galsim.degrees/galsim.arcsec, flux=source['Total_flux'])
-          hlr = gal_gauss.getHalfLightRadius()
-          gal = galsim.Exponential(half_light_radius=hlr, flux=source['Total_flux'], gsparams=big_fft_params)
+          #hlr = gal_gauss.getHalfLightRadius()
+          #gal = galsim.Exponential(half_light_radius=hlr, flux=source['Total_flux'], gsparams=big_fft_params)
+          gal = gal_gauss
           
           e1 = mod_e*np.cos(2.*theta)
           e2 = mod_e*np.sin(2.*theta)
@@ -234,7 +236,7 @@ def runSuperCal(config):
           
           image_to_measure = obsgal_stamp[bounds] + residual_image_gs[bounds]
 
-          if image_to_measure.shape[0] != image_to_measure.shape[1]:
+          if image_to_measure.array.shape[0] != image_to_measure.array.shape[1]:
             continue
           
           if config.get('ring', 'doplots') and g_i==0:
