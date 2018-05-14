@@ -32,35 +32,33 @@ def add_source_subplot(grid, i_plot, n_plots, image, label, global_norm=False):
   grid[i_plot].set_ylim([0,image.shape[1]])
   grid[i_plot].axis('off')
 
-  grid[i_plot+n_plots].plot(image[:,image.shape[1]/2],'k-')
-  grid[i_plot+n_plots].set_xlim([0,image.shape[0]])
-  if bool(global_norm:)
-    grid[i_plot+n_plots].set_ylim([0,global_norm])
-  grid[i_plot+n_plots].axis('off')
-
-  grid[i_plot].set_title(label, size='x-small')  
+  #grid[i_plot].plot(image[:,image.shape[1]/2],'k-')
+  #grid[i_plot+n_plots].set_xlim([0,image.shape[0]])
+  #if bool(global_norm):
+  #grid[i_plot+n_plots].set_ylim([0,global_norm])
+  #grid[i_plot+n_plots].axis('off')
+  grid[i_plot].set_title(label, size=3)  
 
 def make_source_plot(config, bounds, clean_image, residual_image, model_stamp, obsgal_stamp, image_to_measure, clean_psf_stamp, dirty_psf_stamp, source, source_i, mod_e, theta):
   plt.close('all')
-  nplots=2
+  nplots=7
   fig = plt.figure(1, figsize=(4.5, nplots*3.75))
   grid = AxesGrid(fig, 111,
-                  nrows_ncols=(2,nplots),
+                  nrows_ncols=(1,nplots),
                   axes_pad=0.0,
                   share_all=False,
                   label_mode='L')
 
-  source_peak = clean_image[bounds].array.max() - residual_image[bounds].array.max()
+  source_peak = image_to_measure.array.max()
+  add_source_subplot(grid, 0, 7, clean_image[bounds].array, 'CLEAN', global_norm=source_peak)
+  add_source_subplot(grid, 1, 7, residual_image[bounds].array, 'Residual', global_norm=source_peak)
+  add_source_subplot(grid, 2, 7, model_stamp.array, 'Model', global_norm=source_peak)
+  add_source_subplot(grid, 3, 7, obsgal_stamp.array, 'Model+PSF', global_norm=source_peak)
+  add_source_subplot(grid, 4, 7, image_to_measure.array, 'Model+PSF+Residual', global_norm=source_peak)
+  add_source_subplot(grid, 5, 7, clean_psf_stamp.array, 'CLEAN PSF', global_norm=source_peak)
+  add_source_subplot(grid, 6, 7, dirty_psf_stamp, 'Dirty PSF', global_norm=source_peak)
   
-  add_source_subplot(grid, 0, clean_image[bounds].array, 'CLEAN', global_norm=source_peak)
-  add_source_subplot(grid, 1, residual_image[bounds].array, 'Residual', global_norm=source_peak)
-  add_source_subplot(grid, 2, model_stamp.array, 'Model', global_norm=source_peak)
-  add_source_subplot(grid, 3, obsgal_stamp.array, 'Model+PSF', global_norm=source_peak)
-  add_source_subplot(grid, 4, image_to_measure.array, 'Model+PSF+Residual', global_norm=source_peak)
-  add_source_subplot(grid, 5, clean_psf_stamp.array, 'CLEAN PSF', global_norm=source_peak)
-  add_source_subplot(grid, 6, dirty_psf_stamp.array, 'Dirty PSF', global_norm=source_peak)
-  
-  plt.suptitle('{0} \n {1}'.format(config.get('input', 'clean_image').split['/'][-1], source['Source_id']), size='x-small')
+  #plt.suptitle('{0} \n {1}'.format(config.get('input', 'clean_image').split('/')[-1], source['Source_id']), size=3)
   plt.savefig(config.get('output', 'output_plot_dir')+'/{0}_mode_{1}_rot_{2}.png'.format(source['Source_id'], mod_e, theta), dpi=300, bbox_inches='tight')
 
 def source_in_pointing(source, w_twod, npix):
@@ -73,7 +71,7 @@ def source_in_pointing(source, w_twod, npix):
 
 def get_stamp_size(source, pix_scale):
 
-  stamp_size = 10.* (source['Maj']*galsim.degrees / galsim.arcsec) / (pix_scale / galsim.arcsec)
+  stamp_size = 20.* (source['Maj']*galsim.degrees / galsim.arcsec) / (pix_scale / galsim.arcsec)
   stamp_size = ceil(stamp_size/2.) *2  
   
   return int(stamp_size)

@@ -31,6 +31,8 @@ calibration_output_columns = names=('Source_id', 'mod_g', 'theta_g', 'mod_e', 't
 big_fft_params = galsim.GSParams(maximum_fft_size=81488)
 
 def runSuperCal(config):
+  if not config.has_option('input', 'pointing_name'):
+    config.set('input', 'pointing_name', config.get('survey', 'pointing_list'))
   
   print('######################################')
   print('       START POINTING {0}       '.format(config.get('input', 'pointing_name')))
@@ -224,7 +226,8 @@ def runSuperCal(config):
           bounds = obsgal_stamp.bounds & residual_image_gs.bounds
           
           # peak correction
-          source_peak = (clean_image[bounds].array - residual_image_gs[bounds].array).max()
+          source_peak = source['Peak_flux']
+          #source_peak = (clean_image[bounds].array - residual_image_gs[bounds].array).max()
           flux_correction = source_peak/obsgal_stamp.array.max()
           
           obsgal_stamp = obsgal_stamp*flux_correction
@@ -237,7 +240,7 @@ def runSuperCal(config):
           weight = np.ones_like(obsgal_stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
           if config.get('input', 'measurement_method')=='im3shape':
-            result, best_fit = analyze(image_to_measure.array, psf_stamp.array, options, weight=weight, ID=idx)
+            result, best_fit = analyze(image_to_measure.array, psf_stamp[bounds].array, options, weight=weight, ID=idx)
             result = process_im3shape_result(config, source, result, best_fit) 
           elif config.get('input', 'measurement_method')=='hsm':
             result = galsim.hsm.EstimateShear(image_to_measure.array, psf_stamp.array)
