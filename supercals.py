@@ -233,6 +233,9 @@ def runSuperCal(config):
           obsgal_stamp = obsgal_stamp*flux_correction
           
           image_to_measure = obsgal_stamp[bounds] + residual_image_gs[bounds]
+
+          if image_to_measure.shape[0] != image_to_measure.shape[1]:
+            continue
           
           if config.get('ring', 'doplots') and g_i==0:
             make_source_plot(config, bounds, clean_image, residual_image_gs, model_stamp, obsgal_stamp, image_to_measure, psf_stamp, dirty_psf_stamp, source, source_i, mod_e, theta)
