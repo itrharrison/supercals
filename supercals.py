@@ -7,6 +7,7 @@ import time
 import cPickle as pickle
 import pdb
 from math import ceil
+import glob
 
 from astropy.io import fits
 from astropy.table import Table, join, Column
@@ -84,6 +85,22 @@ def runSuperCal(config):
   residual_fname = config.get('input', 'residual_image')
   clean_fname = config.get('input', 'clean_image')
   dirty_psf_fname = config.get('input', 'psf_image')
+  
+  if not os.path.exists(clean_fname):
+    #tar_fname = config.get('survey', 'pointing_root_directory')+'/'+config.get('input','pointing_name')+'/'
+    #tarball = glob.glob(tar_fname+'*.tgz')
+    tarball = config.get('input', 'pointing_name')+'.tgz'
+    og_dir = os.getcwd()
+    os.chdir(config.get('survey', 'pointing_root_directory')+'/'+config.get('input','pointing_name')+'/')
+    print('untarring {0}...'.format(tarball))
+    cmd = 'tar -xzvf ./{0} *.fits'.format(tarball)
+    print(cmd)
+    pdb.set_trace()
+    os.system(cmd)
+    print('...done')
+    os.chdir(og_dir)
+
+
   residual_image = fits.getdata(residual_fname)[0,0]
   clean_image = fits.getdata(clean_fname)[0,0]
   dirty_psf_image = fits.getdata(dirty_psf_fname)[0,0]

@@ -2,8 +2,8 @@ import numpy as np
 import sys
 import ConfigParser
 
-from supercal import *
-from supercal_postprocess import *
+from supercals import *
+from supercals_postprocess import *
 
 config = ConfigParser.ConfigParser()
 config.read(sys.argv[-1])
@@ -19,7 +19,7 @@ for pointing in pointing_list:
   config.set('input', 'catalogue', wl_catalogue)
   config.set('input', 'residual_image', pointing_fname_root+'.residual.tt0.fits')
   config.set('input', 'clean_image', pointing_fname_root+'.image.tt0.fits')
-  config.set('input', 'psf_image', pointing_fname_root+'-psf.fits')
+  config.set('input', 'psf_image', pointing_fname_root+'.image.tt0.fits')
   config.set('output', 'output_cat_dir', pointing_fname_root+'/supercal-output/')
   config.set('output', 'output_plot_dir', pointing_fname_root+'/supercal-output/')
   config.set('input', 'pointing_name', pointing)

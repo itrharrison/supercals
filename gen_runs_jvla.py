@@ -1,11 +1,11 @@
 import numpy as np
 import glob
+import pdb
 
-directory_list = glob.glob('/share/nas_mberc1/raid/harrison/superclass/jvla/*')
-pointing_list = [directory.split('/')[-1] for directory in directory_list]
-
+directory_list = glob.glob('/share/c10/harrison/jvla_dr1/*/')
+pointing_list = [directory.split('/')[-2] for directory in directory_list]
 pointing_array = np.asarray(pointing_list)
-pointing_chunks_array = np.array_split(pointing_array, 1)
+pointing_chunks_array = np.array_split(pointing_array, 6)
 
 for i,pointing_chunk in enumerate(pointing_chunks_array):
   
