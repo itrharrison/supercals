@@ -85,6 +85,7 @@ def runSuperCal(config):
   residual_fname = config.get('input', 'residual_image')
   clean_fname = config.get('input', 'clean_image')
   dirty_psf_fname = config.get('input', 'psf_image')
+  mosaic_fname = config.get('input', 'mosaic_image')
   
   if not os.path.exists(clean_fname):
     #tar_fname = config.get('survey', 'pointing_root_directory')+'/'+config.get('input','pointing_name')+'/'
@@ -93,14 +94,14 @@ def runSuperCal(config):
     og_dir = os.getcwd()
     os.chdir(config.get('survey', 'pointing_root_directory')+'/'+config.get('input','pointing_name')+'/')
     print('untarring {0}...'.format(tarball))
-    cmd = 'tar -xzvf ./{0} *.fits'.format(tarball)
+    cmd = 'tar -xzvf ./{0} --wildcards "*.fits"'.format(tarball)
     print(cmd)
     pdb.set_trace()
     os.system(cmd)
     print('...done')
     os.chdir(og_dir)
 
-
+  mosaic_image = fits.getdata(mosaic_fname)[0,0]
   residual_image = fits.getdata(residual_fname)[0,0]
   clean_image = fits.getdata(clean_fname)[0,0]
   dirty_psf_image = fits.getdata(dirty_psf_fname)[0,0]
@@ -111,6 +112,13 @@ def runSuperCal(config):
   header_twod = w_twod.to_header()
   image_size = clean_image.shape[0]
   pix_scale = np.abs(header_twod['CDELT1'])*galsim.degrees
+
+  w_fourd_mosaic = wcs.WCS(mosaic_fname)
+  w_twod_mosaic = w_fourd_mosaic.dropaxis(3).dropaxis(2)
+  header_twod_mosaic = w_twod_mosaic.to_header()
+  image_xsize_mosaic = mosaic_image.shape[0]
+  image_ysize_mosaic = mosaic_image.shape[1]
+  pix_scale_mosaic = np.abs(header_twod['CDELT1'])*galsim.degrees
   
   # setup galsim images
   dirty_psf_image_gs = galsim.ImageF(image_size, image_size, scale=pix_scale)
@@ -121,6 +129,10 @@ def runSuperCal(config):
   residual_image_gs = galsim.ImageF(image_size, image_size, scale=pix_scale)
   residual_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
   residual_image_gs += galsim.ImageF(residual_image)
+
+  mosaic_image_gs = galsim.imageF(image_xsize_mosaic, image_ysize_mosaic, scale=pix_scale_mosaic)
+  mosaic_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(headertwod_mosaic)
+  mosaic_image_gs += galsim.ImageF(mosaic_image) 
   
   clean_image = galsim.ImageF(clean_image)
 
@@ -243,6 +255,7 @@ def runSuperCal(config):
           
           # Add the flux from the residual image to the sub-image
           bounds = obsgal_stamp.bounds & residual_image_gs.bounds
+          mosaic_bounds = obsgal_stamp.bounds & mosaic_image_gs.bounds
           
           # peak correction
           source_peak = source['Peak_flux']
@@ -257,7 +270,7 @@ def runSuperCal(config):
             continue
           
           if config.get('ring', 'doplots') and g_i==0:
-            make_source_plot(config, bounds, clean_image, residual_image_gs, model_stamp, obsgal_stamp, image_to_measure, psf_stamp, dirty_psf_stamp, source, source_i, mod_e, theta)
+            make_source_plot(config, bounds, mosaic_image_gs[mosaic_bounds].array, clean_image, residual_image_gs, model_stamp, obsgal_stamp, image_to_measure, psf_stamp, dirty_psf_stamp, source, source_i, mod_e, theta)
                       
           weight = np.ones_like(obsgal_stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
