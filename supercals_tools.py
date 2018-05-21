@@ -52,7 +52,7 @@ def make_source_plot(config, bounds, mosaic_image_array, clean_image, residual_i
   source_peak = image_to_measure.array.max()
   add_source_subplot(grid, 0, nplots, mosaic_image_array, 'Mosaic', global_norm=source_peak)
   add_source_subplot(grid, 1, nplots, clean_image[bounds].array, 'CLEAN', global_norm=source_peak)
-  add_source_subplot(grid, 2, nplots, residual_image[bounds].array, 'Residual', global_norm=source_peak)
+  add_source_subplot(grid, 2, nplots, residual_image[bounds].array, 'Residual\n{0:.2e}'.format(np.var(residual_image[bounds].array)), global_norm=source_peak)
   add_source_subplot(grid, 3, nplots, model_stamp.array, 'Model', global_norm=source_peak)
   add_source_subplot(grid, 4, nplots, obsgal_stamp.array, 'Model+PSF', global_norm=source_peak)
   add_source_subplot(grid, 5, nplots, image_to_measure.array, 'Model+PSF+Residual', global_norm=source_peak)
