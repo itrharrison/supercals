@@ -15,6 +15,7 @@ catalogue_origin=pybdsm
 residual_image=
 clean_image=
 psf_image=
+mosaic_image=/share/nas_mberc2/raid/raw/BiggerMapTest/Flatn/Flatn49_v2.0.fits
 snr_cut=10.0
 
 [ring]

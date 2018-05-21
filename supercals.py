@@ -86,7 +86,7 @@ def runSuperCal(config):
   clean_fname = config.get('input', 'clean_image')
   dirty_psf_fname = config.get('input', 'psf_image')
   mosaic_fname = config.get('input', 'mosaic_image')
-  
+  '''
   if not os.path.exists(clean_fname):
     #tar_fname = config.get('survey', 'pointing_root_directory')+'/'+config.get('input','pointing_name')+'/'
     #tarball = glob.glob(tar_fname+'*.tgz')
@@ -100,7 +100,7 @@ def runSuperCal(config):
     os.system(cmd)
     print('...done')
     os.chdir(og_dir)
-
+  '''
   mosaic_image = fits.getdata(mosaic_fname)[0,0]
   residual_image = fits.getdata(residual_fname)[0,0]
   clean_image = fits.getdata(clean_fname)[0,0]
@@ -129,11 +129,11 @@ def runSuperCal(config):
   residual_image_gs = galsim.ImageF(image_size, image_size, scale=pix_scale)
   residual_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
   residual_image_gs += galsim.ImageF(residual_image)
-
-  mosaic_image_gs = galsim.imageF(image_xsize_mosaic, image_ysize_mosaic, scale=pix_scale_mosaic)
-  mosaic_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(headertwod_mosaic)
+  '''
+  mosaic_image_gs = galsim.ImageF(image_xsize_mosaic, image_ysize_mosaic, scale=pix_scale_mosaic)
+  mosaic_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod_mosaic)
   mosaic_image_gs += galsim.ImageF(mosaic_image) 
-  
+  '''
   clean_image = galsim.ImageF(clean_image)
 
   # get the beam information
@@ -255,7 +255,6 @@ def runSuperCal(config):
           
           # Add the flux from the residual image to the sub-image
           bounds = obsgal_stamp.bounds & residual_image_gs.bounds
-          mosaic_bounds = obsgal_stamp.bounds & mosaic_image_gs.bounds
           
           # peak correction
           source_peak = source['Peak_flux']
@@ -270,7 +269,22 @@ def runSuperCal(config):
             continue
           
           if config.get('ring', 'doplots') and g_i==0:
-            make_source_plot(config, bounds, mosaic_image_gs[mosaic_bounds].array, clean_image, residual_image_gs, model_stamp, obsgal_stamp, image_to_measure, psf_stamp, dirty_psf_stamp, source, source_i, mod_e, theta)
+            y_m, x_m = w_twod_mosaic.wcs_world2pix(source['RA'], source['DEC'], 0,)
+            x_m = float(x_m)
+            y_m = float(y_m)
+            
+            # Account for the fractional part of the position:
+            ix_m = int(np.floor(x_m+0.5))
+            iy_m = int(np.floor(y_m+0.5))
+            
+            mosaic_cutout = mosaic_image[ix_m - clean_image[bounds].array.shape[0]/2:ix_m + clean_image[bounds].array.shape[0]/2, iy_m - clean_image[bounds].array.shape[1]/2:iy_m + clean_image[bounds].array.shape[1]/2]
+            '''
+            position = SkyCoord(ra=source['RA']*u.deg, dec=source['DEC']*u.deg, 'ircs')
+            size_coutout = (clean_image[bounds].array.shape[0], clean_image[bounds].array.shape[1])
+            mosaic_cutout = Cutout2D(mosaic_image, source_coord, size_cutout, wcs=w_twod_mosaic)
+            '''
+            
+            make_source_plot(config, bounds, mosaic_cutout, clean_image, residual_image_gs, model_stamp, obsgal_stamp, image_to_measure, psf_stamp, dirty_psf_stamp, source, source_i, mod_e, theta)
                       
           weight = np.ones_like(obsgal_stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
