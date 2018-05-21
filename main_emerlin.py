@@ -3,7 +3,7 @@ import sys
 import ConfigParser
 
 from supercals import *
-from supercals_postprocess import *
+from postprocess import *
 
 config = ConfigParser.ConfigParser()
 config.read(sys.argv[-1])
@@ -33,12 +33,10 @@ for pointing in pointing_list:
   config.set('output', 'output_cat_dir', config.get('output', 'output_cat_dir_base')+'/'+pointing+'/')
   config.set('input', 'pointing_name', pointing)
   
-  runSuperCal(config)
-  # need to think about this
-  # do we want to used averaged corrections on averaged measurements?
-  # is this equivalent to averaging after correction (probably)?
-  #for source in wl_cat:
-  #  make_m_and_c(source, config)
-  #  calculate_corrected_ellipticity(source_in_pointing, config)
-  #  make_calib_surface_plots(config)
+  if config.get('pipeline', 'do_supercal'):  
+    runSuperCal(config)
+  if config.get('pipeline', 'do_calibration'):
+    runCalibration(config)
 
+if config.get('pipeline', 'do_create_calibrated_catalogue'):
+  runCreateCatalogue(config)
