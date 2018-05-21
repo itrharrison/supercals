@@ -41,7 +41,7 @@ def runSuperCal(config):
 
   # set up output names
   image_output_cat = Table(names=image_output_columns,  dtype=['S27']+(len(image_output_columns)-1)*[float])
-  image_output_cat_fname = config.get('output', 'output_cat_dir')+'/uncalibrated-shape-catalogue.fits'
+  image_output_cat_fname = config.get('output', 'output_cat_dir')+'/{0}-uncalibrated-shape-catalogue.fits'.format(config.get('input', 'pointing_name')))
   
   if not os.path.exists(config.get('output', 'output_cat_dir')):
     os.makedirs(config.get('output', 'output_cat_dir'))
@@ -195,6 +195,8 @@ def runSuperCal(config):
     print('RA: {0}, DEC: {1}'.format(source['RA'], source['DEC']))
     print('Flux: '+('%.3e' % source['Total_flux'])+' Jy')
     print('Size: {0} arcsec'.format(source['Maj']*galsim.degrees/galsim.arcsec))
+    print('Saving plots to:')
+    print(config.get('output', 'output_plot_dir')+'/{0}_mode_X_rot_X.png'.format(source['Source_id']))
     print('######################################')
     print('e1_in\te1_out\t||\te2_in\te2_out')
     print('----------------||--------------------')
@@ -307,7 +309,7 @@ def runSuperCal(config):
           
           print(('%.3f' % e1)+'\t'+('%.3f' % result['e1_obs'])+'\t||\t'+('%.3f' % e2)+'\t'+('%.3f' % result['e2_obs']))
 
-          if g_i == 0:
+          if (g_i == 0) and (e_i == 0) and (o_i == 0):
             # also measure the actual shape in the clean image
             if config.get('input', 'measurement_method')=='im3shape':
               result, best_fit = analyze(clean_image[bounds].array, psf_stamp.array, options, weight=weight, ID=idx)

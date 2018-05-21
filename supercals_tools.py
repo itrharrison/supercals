@@ -61,7 +61,6 @@ def make_source_plot(config, bounds, mosaic_image_array, clean_image, residual_i
   
   #plt.suptitle('{0} \n {1}'.format(config.get('input', 'clean_image').split('/')[-1], source['Source_id']), size=3)
   plt.savefig(config.get('output', 'output_plot_dir')+'/{0}_mode_{1}_rot_{2}.png'.format(source['Source_id'], mod_e, theta), dpi=300, bbox_inches='tight')
-  print(config.get('output', 'output_plot_dir')+'/{0}_mode_{1}_rot_{2}.png'.format(source['Source_id'], mod_e, theta))
 
 def source_in_pointing(source, w_twod, npix):
 
