@@ -39,9 +39,9 @@ def add_source_subplot(grid, i_plot, n_plots, image, label, global_norm=False):
   #grid[i_plot+n_plots].axis('off')
   grid[i_plot].set_title(label, size=3)  
 
-def make_source_plot(config, bounds, mosaic_image_array, clean_image, residual_image, model_stamp, obsgal_stamp, image_to_measure, clean_psf_stamp, dirty_psf_stamp, source, source_i, mod_e, theta):
+def make_source_plot(config, bounds, mosaic_image_array, clean_image, residual_image, model_stamp, obsgal_stamp, image_to_measure, clean_psf_stamp, dirty_psf_stamp, model_image_stamp, source, source_i, mod_e, theta, clean_header):
   plt.close('all')
-  nplots=8
+  nplots=9
   fig = plt.figure(1, figsize=(4.5, nplots*3.75))
   grid = AxesGrid(fig, 111,
                   nrows_ncols=(1,nplots),
@@ -49,16 +49,18 @@ def make_source_plot(config, bounds, mosaic_image_array, clean_image, residual_i
                   share_all=False,
                   label_mode='L')
 
+  offset_dist = np.sqrt((clean_header['CRVAL1']-source['RA'])**2. + (clean_header['CRVAL2']-source['DEC'])**2.)
   source_peak = image_to_measure.array.max()
   add_source_subplot(grid, 0, nplots, mosaic_image_array, 'Mosaic', global_norm=source_peak)
   add_source_subplot(grid, 1, nplots, clean_image[bounds].array, 'CLEAN', global_norm=source_peak)
-  add_source_subplot(grid, 2, nplots, residual_image[bounds].array, 'Residual', global_norm=source_peak)
+  add_source_subplot(grid, 2, nplots, residual_image[bounds].array, 'Residual\nRMS: {0:.2e}\nOffset: {1:.3f}'.format(np.sqrt(np.var(residual_image[bounds].array)), offset_dist), global_norm=source_peak)
   add_source_subplot(grid, 3, nplots, model_stamp.array, 'Model', global_norm=source_peak)
   add_source_subplot(grid, 4, nplots, obsgal_stamp.array, 'Model+PSF', global_norm=source_peak)
   add_source_subplot(grid, 5, nplots, image_to_measure.array, 'Model+PSF+Residual', global_norm=source_peak)
   add_source_subplot(grid, 6, nplots, clean_psf_stamp.array, 'CLEAN PSF', global_norm=source_peak)
   add_source_subplot(grid, 7, nplots, dirty_psf_stamp, 'Dirty PSF', global_norm=source_peak)
-  
+  add_source_subplot(grid, 8, nplots, model_image_stamp, 'CLEAN Comps.\nN={0}\n{1:.2e}'.format(np.sum(model_image_stamp!=0), np.sum(model_image_stamp)))
+  os.system('echo \'{0},{1:.3f},{2:.2e},{3},{4:.2e}\' >> /home/harrison/offsets.txt'.format(source['Source_id'], offset_dist, np.sqrt(np.var(residual_image[bounds].array)), np.sum(model_image_stamp!=0), np.sum(model_image_stamp)))
   #plt.suptitle('{0} \n {1}'.format(config.get('input', 'clean_image').split('/')[-1], source['Source_id']), size=3)
   plt.savefig(config.get('output', 'output_plot_dir')+'/{0}_mode_{1}_rot_{2}.png'.format(source['Source_id'], mod_e, theta), dpi=300, bbox_inches='tight')
 
