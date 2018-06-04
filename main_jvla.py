@@ -20,6 +20,7 @@ for pointing in pointing_list:
   config.set('input', 'residual_image', pointing_fname_root+'.residual.tt0.fits')
   config.set('input', 'clean_image', pointing_fname_root+'.image.tt0.fits')
   config.set('input', 'psf_image', pointing_fname_root+'.image.tt0.fits')
+  config.set('input', 'model_image', pointing_fname_root+'.model.tt0.fits')
   config.set('output', 'output_cat_dir', pointing_fname_root+'/supercal-output/')
   config.set('output', 'output_plot_dir', pointing_fname_root+'/supercal-output/')
   config.set('input', 'pointing_name', pointing)

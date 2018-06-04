@@ -20,6 +20,7 @@ for pointing in pointing_list:
   config.set('input', 'residual_image', pointing_fname_root+'-residual.fits')
   config.set('input', 'clean_image', pointing_fname_root+'-image.fits')
   config.set('input', 'psf_image', pointing_fname_root+'-psf.fits')
+  config.set('input', 'model_image', pointing_fname_root+'-model.fits')
 
   if not config.has_option('output', 'output_plot_dir_base'):
     plot_dir_base = config.get('output', 'output_plot_dir')
@@ -33,10 +34,10 @@ for pointing in pointing_list:
   config.set('output', 'output_cat_dir', config.get('output', 'output_cat_dir_base')+'/'+pointing+'/')
   config.set('input', 'pointing_name', pointing)
   
-  if config.get('pipeline', 'do_supercal'):  
+  if config.getboolean('pipeline', 'do_supercals'):
     runSuperCal(config)
-  if config.get('pipeline', 'do_calibration'):
+  if config.getboolean('pipeline', 'do_calibration'):
     runCalibration(config)
 
-if config.get('pipeline', 'do_create_calibrated_catalogue'):
+if config.getboolean('pipeline', 'do_create_calibrated_catalogue'):
   runCreateCatalogue(config)

@@ -62,3 +62,4 @@ def runCalibration(config):
 
 def runCreateCatalogue(config):
   # from per pointing calibrated catalogue, take averages to get calibrated source shape measurement!
+  return 0

@@ -41,7 +41,7 @@ def runSuperCal(config):
 
   # set up output names
   image_output_cat = Table(names=image_output_columns,  dtype=['S27']+(len(image_output_columns)-1)*[float])
-  image_output_cat_fname = config.get('output', 'output_cat_dir')+'/{0}-uncalibrated-shape-catalogue.fits'.format(config.get('input', 'pointing_name')))
+  image_output_cat_fname = config.get('output', 'output_cat_dir')+'/{0}-uncalibrated-shape-catalogue.fits'.format(config.get('input', 'pointing_name'))
   
   if not os.path.exists(config.get('output', 'output_cat_dir')):
     os.makedirs(config.get('output', 'output_cat_dir'))
@@ -85,6 +85,7 @@ def runSuperCal(config):
   residual_fname = config.get('input', 'residual_image')
   clean_fname = config.get('input', 'clean_image')
   dirty_psf_fname = config.get('input', 'psf_image')
+  model_fname = config.get('input', 'model_image')
   mosaic_fname = config.get('input', 'mosaic_image')
   '''
   if not os.path.exists(clean_fname):
@@ -104,6 +105,8 @@ def runSuperCal(config):
   mosaic_image = fits.getdata(mosaic_fname)[0,0]
   residual_image = fits.getdata(residual_fname)[0,0]
   clean_image = fits.getdata(clean_fname)[0,0]
+  model_image = fits.getdata(model_fname)[0,0]
+  clean_header = fits.getheader(clean_fname)
   dirty_psf_image = fits.getdata(dirty_psf_fname)[0,0]
   
   # set up wcs
@@ -248,7 +251,7 @@ def runSuperCal(config):
           obsgal_stamp = obsgal.drawImage(nx=stamp_size, ny=stamp_size, scale=pix_scale/galsim.arcsec, offset=offset)
                   
           dirty_psf_stamp = dirty_psf_image[dirty_psf_image.shape[0]/2 - stamp_size/2:dirty_psf_image.shape[0]/2 + stamp_size/2, dirty_psf_image.shape[1]/2 - stamp_size/2:dirty_psf_image.shape[1]/2 + stamp_size/2]
-
+          
           psf_image = galsim.Image(stamp_size, stamp_size, scale=pix_scale/galsim.arcsec)
           psf_stamp = psf.drawImage(image=psf_image)
           
@@ -271,6 +274,7 @@ def runSuperCal(config):
             continue
           
           if config.get('ring', 'doplots') and g_i==0:
+            model_image_stamp = model_image[ix - clean_image[bounds].array.shape[0]/2:ix + clean_image[bounds].array.shape[0]/2, iy - clean_image[bounds].array.shape[1]/2:iy + clean_image[bounds].array.shape[1]/2]
             y_m, x_m = w_twod_mosaic.wcs_world2pix(source['RA'], source['DEC'], 0,)
             x_m = float(x_m)
             y_m = float(y_m)
@@ -286,7 +290,7 @@ def runSuperCal(config):
             mosaic_cutout = Cutout2D(mosaic_image, source_coord, size_cutout, wcs=w_twod_mosaic)
             '''
             
-            make_source_plot(config, bounds, mosaic_cutout, clean_image, residual_image_gs, model_stamp, obsgal_stamp, image_to_measure, psf_stamp, dirty_psf_stamp, source, source_i, mod_e, theta)
+            make_source_plot(config, bounds, mosaic_cutout, clean_image, residual_image_gs, model_stamp, obsgal_stamp, image_to_measure, psf_stamp, dirty_psf_stamp, model_image_stamp, source, source_i, mod_e, theta, clean_header)
                       
           weight = np.ones_like(obsgal_stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
@@ -335,17 +339,17 @@ def runSuperCal(config):
     
     t_sourceend = time.time()
 
-    fits.setval(calibration_cat_fname, 'SOURCE_ID', value = source['Source_id'])
+    fits.setval(calibration_cat_fname, 'SRC_ID', value = source['Source_id'])
     fits.setval(calibration_cat_fname, 'RA', value = source['RA'])
     fits.setval(calibration_cat_fname, 'DEC', value = source['DEC'])
-    fits.setval(calibration_cat_fname, 'TOTAL_FLUX', value = source['Total_flux'])
+    fits.setval(calibration_cat_fname, 'TOT_FLUX', value = source['Total_flux'])
     fits.setval(calibration_cat_fname, 'MAJ', value = source['Maj'])
     fits.setval(calibration_cat_fname, 'MIN', value = source['Min'])
     fits.setval(calibration_cat_fname, 'PA', value = source['PA'])
     fits.setval(calibration_cat_fname, 'BMAJ', value = bmaj / galsim.degrees)
     fits.setval(calibration_cat_fname, 'BMIN', value = bmin / galsim.degrees)
     fits.setval(calibration_cat_fname, 'BPA', value = bpa / galsim.degrees)
-    fits.setval(calibration_cat_fname, 'TIME_TAKEN', value = t_sourceend - t_sourcestart)
+    fits.setval(calibration_cat_fname, 'T_TAKEN', value = t_sourceend - t_sourcestart)
     
     print('Source {0} finished in '.format(source_i)+('%.2f seconds.' % (t_sourceend - t_sourcestart)))
     print('With an average of '.format(source_i)+('%.2f s' % (n_evals/float(t_sourceend - t_sourcestart)))+'/ring point.')
