@@ -336,6 +336,8 @@ def runSuperCal(config):
   
     
     calibration_output_cat.write(calibration_cat_fname, format='fits', overwrite=True)
+
+    del calibration_output_cat
     
     t_sourceend = time.time()
 
@@ -356,6 +358,15 @@ def runSuperCal(config):
     print('--------------------------------------')
   
   image_output_cat.write(image_output_cat_fname, format='fits', overwrite=True)
+
+  del image_output_cat
+  del mosaic_image
+  del residual_image
+  del clean_image
+  del model_image
+  del clean_header
+  del dirty_psf_image
+  del clean_image_header
   
 if __name__ == '__main__':
   config = ConfigParser.ConfigParser()
