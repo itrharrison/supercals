@@ -61,4 +61,40 @@ def runCalibration(config):
   calibrated_cat.write(calibrated_cat_fname, format='fits')
 
 def runCreateCatalogue(config):
-  # from per pointing calibrated catalogue, take averages to get calibrated source shape measurement!
+  # from per pointing calibrated catalogue, take averages to get calibrated source shape measurements
+  cat = Table.read(config.get('input', 'catalogue'), format='fits')
+
+  calibration_cat_fname = config.get('output', 'output_cat_dir')+'/{0}_supercals.fits'.format(source['Source_id'])
+
+  pointing_list = config.get('survey', 'pointing_list').split(',')
+
+
+  for pointing in pointing_list:
+
+    calibration_cat_fname = config.get('output', 'output_cat_dir')+'/{0}-calibrated-shape-catalogue.fits'.format(config.get('input', 'pointing_name'))
+    calibration_cat = Table.read(calibration_cat_fname)
+
+    for source_i, source in enumerate(cat):
+      
+      # todo: work out what kind of data structure will actually let you do what you want (pd?)
+      
+      if source['Source_id'] not in calibration_cat['Source_id']:
+        continue
+
+      source_calibration = calibration_cat[calibration_cat['Source_id']==source['Source_id']]
+
+      cat['Source_id'==source['Source_id']]['calibrated_e1_list'].append(source_calibration['e1_calibrated'])
+      cat['Source_id'==source['Source_id']]['calibrated_e2_list'].append(source_calibration['e2_calibrated'])
+      cat['Source_id'==source['Source_id']]['calibrated_sigma2_e1_list'].append(source_calibration['sigma2_e1_calibrated'])
+      cat['Source_id'==source['Source_id']]['calibrated_sigma2_e2_list'].append(source_calibration['sigma2_e2_calibrated'])
+
+
+  for source_i, source in enumerate(cat)
+
+    cat['Source_id'==source['Source_id']]['calibrated_e1'] = np.average(source['calibrated_e1_list'], weights=)
+    cat['Source_id'==source['Source_id']]['calibrated_e2'] = np.average(source['calibrated_e2_list'], weights=)
+
+  cat.write(config.get('input', 'catalogue').rstrip('.fits')+'-withcal.fits', format='fits', overwrite=True)
+
+
+
