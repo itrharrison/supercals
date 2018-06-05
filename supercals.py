@@ -170,6 +170,9 @@ def runSuperCal(config):
     # create a shapelet model of the dirty beam
     psf = galsim.FitShapelet(1, 6, dirty_psf_image_gs, dirty_psf_image_gs.center())
   
+  if config.getboolean('survey', 'restore_smoothed'):
+    residual_image_gs = galsim.Convolve([residual_image_gs, psf])
+
   # set up output columns
   g_1meas = np.empty([len(cat), n_shears, n_ellipticities])
   g_2meas = np.empty([len(cat), n_shears, n_ellipticities])
