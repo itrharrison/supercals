@@ -30,8 +30,8 @@ for pointing in pointing_list:
     plot_dir_base = config.get('output', 'output_cat_dir')
     config.set('output', 'output_cat_dir_base', plot_dir_base)
 
-  config.set('output', 'output_plot_dir', config.get('output', 'output_plot_dir_base')+'/'+pointing+'/')
-  config.set('output', 'output_cat_dir', config.get('output', 'output_cat_dir_base')+'/'+pointing+'/')
+  config.set('output', 'output_plot_dir', config.get('output', 'output_plot_dir_base')+'/'+pointing+'/plots/')
+  config.set('output', 'output_cat_dir', config.get('output', 'output_cat_dir_base')+'/'+pointing+'/cats/)
   config.set('input', 'pointing_name', pointing)
   
   if config.getboolean('pipeline', 'do_supercals'):
