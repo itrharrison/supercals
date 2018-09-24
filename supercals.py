@@ -14,6 +14,8 @@ from astropy.table import Table, join, Column
 import astropy.table as tb
 from astropy import wcs
 
+from scipy.signal import fftconvolve
+
 import galsim
 
 sys.path.append('../simuclass')
@@ -57,6 +59,8 @@ def runSuperCal(config):
   from py3shape.options import Options
   
   options = Options(config.get('im3shape', 'ini_file'))
+  
+  first_source = config.getint('input', 'resume')
 
   # set up ring
   n_shears = config.getint('ring','n_shears') # 1
@@ -74,6 +78,8 @@ def runSuperCal(config):
   
   # load catalogue positions
   cat = Table.read(config.get('input', 'catalogue'), format='fits')
+  if config.getboolean('im3shape', 'im3class_prior'):
+    im3class_catalogue = Table.read(config.get('im3shape', 'im3class_catalogue'), format='fits')
   
   # ToDo: make this unnecessary.
   if 'Source_id_1' in cat.colnames:
@@ -122,14 +128,15 @@ def runSuperCal(config):
   image_xsize_mosaic = mosaic_image.shape[0]
   image_ysize_mosaic = mosaic_image.shape[1]
   pix_scale_mosaic = np.abs(header_twod['CDELT1'])*galsim.degrees
-  
+   
   # setup galsim images
+  '''
   dirty_psf_image_gs = galsim.ImageF(image_size, image_size, scale=pix_scale)
   dirty_psf_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
   #dirty_psf_image_gs.wcs = galsim.wcs.UniformWCS()
   dirty_psf_image_gs += galsim.ImageF(dirty_psf_image)
-  
-  residual_image_gs = galsim.ImageF(image_size, image_size, scale=pix_scale)
+  '''
+  residual_image_gs = galsim.ImageF(residual_image.shape[1], residual_image.shape[0], scale=pix_scale)
   residual_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
   residual_image_gs += galsim.ImageF(residual_image)
   '''
@@ -148,9 +155,12 @@ def runSuperCal(config):
   if (config.get('survey', 'psf_mode')=='wsclean'):
     psf_q = (bmin/galsim.degrees)/(bmaj/galsim.degrees)
     psf_pa = bpa
-    psf_fwhm = bmaj
+    A_psf = np.pi*(bmaj/galsim.arcsec)**2
+    psf_fwhm = np.sqrt(psf_q*A_psf/(np.pi))*galsim.arcsec
+    print(bmaj/galsim.arcsec, psf_fwhm/galsim.arcsec)
     psf = galsim.Gaussian(fwhm=psf_fwhm/galsim.arcsec)
     psf = psf.shear(q=psf_q, beta=psf_pa)
+  '''
   elif (config.get('survey', 'psf_mode')=='hsm'):
     # create a gaussian hsm beam
     moms = galsim.hsm.FindAdaptiveMom(galsim.Image(dirty_psf_image, scale=pix_scale/galsim.arcsec))
@@ -169,10 +179,7 @@ def runSuperCal(config):
   elif (config.get('survey', 'psf_mode')=='dirty'):
     # create a shapelet model of the dirty beam
     psf = galsim.FitShapelet(1, 6, dirty_psf_image_gs, dirty_psf_image_gs.center())
-  
-  if config.getboolean('survey', 'restore_smoothed'):
-    residual_image_gs = galsim.Convolve([residual_image_gs, psf])
-
+  '''
   # set up output columns
   g_1meas = np.empty([len(cat), n_shears, n_ellipticities])
   g_2meas = np.empty([len(cat), n_shears, n_ellipticities])
@@ -184,7 +191,7 @@ def runSuperCal(config):
   
   idx=0
 
-  for source_i, source in enumerate(cat):
+  for source_i, source in enumerate(cat[first_source:]):
   
     if not source_in_pointing(source, w_twod, clean_image.array.shape):
       print('Source {0}/{1} not in pointing {2}. Skipping.'.format(source_i, len(cat), config.get('input', 'pointing_name')))
@@ -231,7 +238,15 @@ def runSuperCal(config):
           ellipticity = galsim.Shear(e1=e1, e2=e2)
           shear = galsim.Shear(g1=g1, g2=g2)
           total_shear = ellipticity + shear
+          
+          maj_gal = source['Maj']
+          q_gal = source['Min']/source['Maj']
+          A_gal = np.pi*maj_gal**2.
+          maj_corr_gal = np.sqrt(A_gal/(np.pi*q_gal))
+          
           gal = gal.shear(total_shear)
+          gal = gal.dilate(maj_gal/maj_corr_gal)
+          
           obsgal = galsim.Convolve([gal, psf])
           
           x, y = w_twod.wcs_world2pix(source['RA'], source['DEC'], 0,)
@@ -244,7 +259,7 @@ def runSuperCal(config):
           offset = galsim.PositionD(x-ix, y-iy)
           
           # Create the sub-image for this galaxy
-          stamp_size = get_stamp_size(source, pix_scale)
+          stamp_size = get_stamp_size(source, pix_scale)/3.
           options['stamp_size'] = stamp_size
           options['sersics_x0_start'] = stamp_size/2
           options['sersics_y0_start'] = stamp_size/2
@@ -252,11 +267,17 @@ def runSuperCal(config):
           options['sersics_y0_max'] = stamp_size
           model_stamp = gal.drawImage(nx=stamp_size, ny=stamp_size, scale=pix_scale/galsim.arcsec, offset=offset)
           obsgal_stamp = obsgal.drawImage(nx=stamp_size, ny=stamp_size, scale=pix_scale/galsim.arcsec, offset=offset)
-                  
+          '''        
           dirty_psf_stamp = dirty_psf_image[dirty_psf_image.shape[0]/2 - stamp_size/2:dirty_psf_image.shape[0]/2 + stamp_size/2, dirty_psf_image.shape[1]/2 - stamp_size/2:dirty_psf_image.shape[1]/2 + stamp_size/2]
-          
+          '''
           psf_image = galsim.Image(stamp_size, stamp_size, scale=pix_scale/galsim.arcsec)
           psf_stamp = psf.drawImage(image=psf_image)
+          
+          # use the im3class prior if available
+          if config.getboolean('im3shape', 'im3class_prior'):
+            im3class_source = im3class_catalogue[im3class_catalogue['Source_id']==source['Source_id']]
+            if len(im3class_source)==1:
+              options['sersics_disc_index_start'] = im3class_source['disc_index'].data[0]
           
           obsgal_stamp.setCenter(ix, iy)
           psf_stamp.setCenter(ix, iy)
@@ -270,10 +291,15 @@ def runSuperCal(config):
           flux_correction = source_peak/obsgal_stamp.array.max()
           
           obsgal_stamp = obsgal_stamp*flux_correction
+          residual_image_stamp_gs = residual_image_gs[bounds]
+          if config.getboolean('survey', 'restore_smoothed'):
+            residual_image_stamp = residual_image_stamp_gs.array
+            residual_image_stamp = fftconvolve(residual_image_stamp, psf_stamp.array, mode='same')
+            residual_image_stamp_gs = galsim.ImageF(residual_image_stamp)
+          image_to_measure = obsgal_stamp[bounds] + residual_image_stamp_gs
           
-          image_to_measure = obsgal_stamp[bounds] + residual_image_gs[bounds]
-
           if image_to_measure.array.shape[0] != image_to_measure.array.shape[1]:
+            print('Trying to measure a {0}x{1} image. Skipping.'.format(image_to_measure.array.shape[0], image_to_measure.array.shape[1]))
             continue
           
           if config.get('ring', 'doplots') and g_i==0:
@@ -293,7 +319,7 @@ def runSuperCal(config):
             mosaic_cutout = Cutout2D(mosaic_image, source_coord, size_cutout, wcs=w_twod_mosaic)
             '''
             
-            make_source_plot(config, bounds, mosaic_cutout, clean_image, residual_image_gs, model_stamp, obsgal_stamp, image_to_measure, psf_stamp, dirty_psf_stamp, model_image_stamp, source, source_i, mod_e, theta, clean_header)
+            make_source_plot(config, bounds, mosaic_cutout, clean_image, residual_image_gs, model_stamp, obsgal_stamp, image_to_measure, psf_stamp, model_image_stamp, model_image_stamp, source, source_i, mod_e, theta, clean_header)
                       
           weight = np.ones_like(obsgal_stamp.array) # ToDo: Should be from RMS map
           # Measure the shear with im3shape
@@ -343,7 +369,7 @@ def runSuperCal(config):
     del calibration_output_cat
     
     t_sourceend = time.time()
-
+    '''
     fits.setval(calibration_cat_fname, 'SRC_ID', value = source['Source_id'])
     fits.setval(calibration_cat_fname, 'RA', value = source['RA'])
     fits.setval(calibration_cat_fname, 'DEC', value = source['DEC'])
@@ -355,7 +381,7 @@ def runSuperCal(config):
     fits.setval(calibration_cat_fname, 'BMIN', value = bmin / galsim.degrees)
     fits.setval(calibration_cat_fname, 'BPA', value = bpa / galsim.degrees)
     fits.setval(calibration_cat_fname, 'T_TAKEN', value = t_sourceend - t_sourcestart)
-    
+    '''  
     print('Source {0} finished in '.format(source_i)+('%.2f seconds.' % (t_sourceend - t_sourcestart)))
     print('With an average of '.format(source_i)+('%.2f s' % (n_evals/float(t_sourceend - t_sourcestart)))+'/ring point.')
     print('--------------------------------------')
@@ -368,8 +394,9 @@ def runSuperCal(config):
   del clean_image
   del model_image
   del clean_header
-  del dirty_psf_image
+  #del dirty_psf_image
   del clean_image_header
+  gc.collect()
   
 if __name__ == '__main__':
   config = ConfigParser.ConfigParser()
