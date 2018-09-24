@@ -75,11 +75,24 @@ def runSuperCal(config):
   # load catalogue positions
   cat = Table.read(config.get('input', 'catalogue'), format='fits')
   
-  # ToDo: make this unnecessary.
-  if 'Source_id_1' in cat.colnames:
+  source_ids = []
+
+  for cname in cat.colnames:
+    if cname.startswith('Source_id'):
+      source_ids.append(cname.lstrip(''))
+  
+  try:
+    if len(source_ids) > 1:
+      raise Exception('')
+  except:
+    print('Too many catalogue Source_id columns!')
+    print('Please specify in ini in [input] with \'primary_id_suffix = \'')
+    print('one of {0}'.format(source_ids))
+
+  if 'Source_id'+config.get('input', 'primary_id_suffix') in cat.colnames:
     for colname in cat.colnames:
-      if colname.endswith('_1'):
-        cat[colname].name = colname.replace('_1', '')
+      if colname.endswith(config.get('input', 'primary_id_suffix')):
+        cat[colname].name = colname.replace(config.get('input', 'primary_id_suffix'), '')
   
   # load images
   residual_fname = config.get('input', 'residual_image')
