@@ -71,7 +71,7 @@ def runSuperCal(config):
 
   orientations = np.linspace(0.e0, np.pi, n_orientations+1)
   orientations = orientations[:-1]
-  ellipticities = np.linspace(0.e0, 0.7, n_ellipticities)
+  ellipticities = np.linspace(0.e0, 0.95, n_ellipticities)
   ellipticities = ellipticities[::-1]
   shears = np.linspace(0.e0, 0.7, n_shears)
   shear_theta = 0.e0
