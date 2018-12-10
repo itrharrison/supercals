@@ -73,7 +73,7 @@ def runSuperCal(config):
   orientations = orientations[:-1]
   ellipticities = np.linspace(0.e0, 0.95, n_ellipticities)
   ellipticities = ellipticities[::-1]
-  shears = np.linspace(0.e0, 0.7, n_shears)
+  shears = np.linspace(0.e0, 0.95, n_shears)
   shear_theta = 0.e0
   
   # load catalogue positions
