@@ -409,7 +409,6 @@ def runSuperCal(config):
   del clean_header
   #del dirty_psf_image
   del clean_image_header
-  gc.collect()
   
 if __name__ == '__main__':
   config = ConfigParser.ConfigParser()
