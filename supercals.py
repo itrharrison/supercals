@@ -15,7 +15,6 @@ import astropy.table as tb
 from astropy import wcs
 
 from scipy.signal import fftconvolve
-
 import galsim
 
 sys.path.append('../simuclass')
@@ -60,7 +59,8 @@ def runSuperCal(config):
   
   options = Options(config.get('im3shape', 'ini_file'))
   
-  first_source = config.getint('input', 'resume')
+  first_source = config.getint('input', 'resume_start')
+  last_source = config.getint('input', 'resume_end')
 
   # set up ring
   n_shears = config.getint('ring','n_shears') # 1
@@ -204,7 +204,7 @@ def runSuperCal(config):
   
   idx=0
 
-  for source_i, source in enumerate(cat[first_source:]):
+  for source_i, source in enumerate(cat[first_source:last_source]):
   
     if not source_in_pointing(source, w_twod, clean_image.array.shape):
       print('Source {0}/{1} not in pointing {2}. Skipping.'.format(source_i, len(cat), config.get('input', 'pointing_name')))
@@ -214,6 +214,8 @@ def runSuperCal(config):
     
     calibration_cat_fname = config.get('output', 'output_cat_dir')+'/{0}_supercals.fits'.format(source['Source_id'])
     calibration_output_cat = Table(names=calibration_output_columns, dtype=['S27']+(len(calibration_output_columns)-1)*[float])
+    
+    options = Options(config.get('im3shape', 'ini_file'))
 
     print('######################################')
     print('{0}'.format(source['Source_id']))
@@ -315,7 +317,7 @@ def runSuperCal(config):
             print('Trying to measure a {0}x{1} image. Skipping.'.format(image_to_measure.array.shape[0], image_to_measure.array.shape[1]))
             continue
           
-          if config.get('ring', 'doplots') and g_i==0:
+          if config.getboolean('ring', 'doplots') and g_i==0:
             model_image_stamp = model_image[ix - clean_image[bounds].array.shape[0]/2:ix + clean_image[bounds].array.shape[0]/2, iy - clean_image[bounds].array.shape[1]/2:iy + clean_image[bounds].array.shape[1]/2]
             y_m, x_m = w_twod_mosaic.wcs_world2pix(source['RA'], source['DEC'], 0,)
             x_m = float(x_m)
@@ -358,8 +360,11 @@ def runSuperCal(config):
           if (g_i == 0) and (e_i == 0) and (o_i == 0):
             # also measure the actual shape in the clean image
             if config.get('input', 'measurement_method')=='im3shape':
+              options['save_images'] = 'YES'
+              options['output_directory'] = config.get('output', 'output_plot_dir')
               result, best_fit = analyze(clean_image[bounds].array, psf_stamp.array, options, weight=weight, ID=idx)
-              result = process_im3shape_result(config, source, result, best_fit) 
+              result = process_im3shape_result(config, source, result, best_fit)
+              options['save_images'] = 'NO'
             elif config.get('input', 'measurement_method')=='hsm':
               result = galsim.hsm.EstimateShear(image_to_measure.array, psf_stamp.array)
               result = {'g1_obs' : result.observed_shape.g1,
