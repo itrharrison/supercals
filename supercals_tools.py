@@ -1,10 +1,10 @@
 import pdb
-import ConfigParser
+import configparser as ConfigParser
 import numpy as np
 import sys
 import os
 import time
-import cPickle as pickle
+import pickle
 import pdb
 from math import ceil
 

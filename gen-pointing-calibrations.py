@@ -24,23 +24,24 @@ pointing_dirs = [
                  #'data/level2-jvla/level2-jvla-indiv-L20',
                  #'data/level2-jvla/level2-jvla-indiv-M23',
                  #'data/level2-jvla/level2-jvla-indiv-N22',
-                 'data/level2-jvla/level2-jvla-indiv-N24',
-                 'data/level2-jvla/level2-jvla-indiv-N26',
-                 'data/level2-jvla/level2-jvla-indiv-N28',
-                 'data/level2-jvla/level2-jvla-indiv-N30',
-                 'data/level2-jvla/level2-jvla-indiv-N32',
-                 'data/level2-jvla/level2-jvla-indiv-N34',
-                 'data/level2-jvla/level2-jvla-indiv-O21',
-                 'data/level2-jvla/level2-jvla-indiv-O23',
-                 'data/level2-jvla/level2-jvla-indiv-O25',
-                 'data/level2-jvla/level2-jvla-indiv-O27',
-                 'data/level2-jvla/level2-jvla-indiv-O29',
-                 'data/level2-jvla/level2-jvla-indiv-O31',
-                 'data/level2-jvla/level2-jvla-indiv-O33',
-                 'data/level2-jvla/level2-jvla-indiv-P22',
-                 'data/level2-jvla/level2-jvla-indiv-P24',
-                 'data/level2-jvla/level2-jvla-indiv-P26',
-                 'data/level2-jvla/level2-jvla-indiv-P28'
+                 # 'data/level2-jvla/level2-jvla-indiv-N24',
+                 # 'data/level2-jvla/level2-jvla-indiv-N26',
+                 # 'data/level2-jvla/level2-jvla-indiv-N28',
+                 # 'data/level2-jvla/level2-jvla-indiv-N30',
+                 # 'data/level2-jvla/level2-jvla-indiv-N32',
+                 # 'data/level2-jvla/level2-jvla-indiv-N34',
+                 # 'data/level2-jvla/level2-jvla-indiv-O21',
+                 # 'data/level2-jvla/level2-jvla-indiv-O23',
+                 # 'data/level2-jvla/level2-jvla-indiv-O25',
+                 # 'data/level2-jvla/level2-jvla-indiv-O27',
+                 # 'data/level2-jvla/level2-jvla-indiv-O29',
+                 # 'data/level2-jvla/level2-jvla-indiv-O31',
+                 # 'data/level2-jvla/level2-jvla-indiv-O33',
+                 # 'data/level2-jvla/level2-jvla-indiv-P22',
+                 # 'data/level2-jvla/level2-jvla-indiv-P24',
+                 # 'data/level2-jvla/level2-jvla-indiv-P26',
+                 # 'data/level2-jvla/level2-jvla-indiv-P28'
+                 'data/level2-jvla/level2-jvla-indiv-J28'
                  ]
 
 all_pointings_cat = Table()
@@ -57,7 +58,7 @@ for ptg in pointing_dirs:
   config.set('catalogues', 'base_dir', ptg)
   config.set('catalogues', 'wl_catalogue', ptg+'/cats/{0}.tclean.image.tt0_split_000.srl.resolved.fits'.format(ptg_name))
   config.set('catalogues', 'supercals_directory', ptg+'/supercals/')
-  config.set('catalogues', 'supercals_catalogue', './data/level2-jvla/level2-jvla-indiv-uncal-{0}/supercals/{0}-uncalibrated-shape-catalogue.fits'.format(ptg_name))
+  config.set('catalogues', 'supercals_catalogue', './data/level2-jvla/level2-jvla-indiv-{0}/supercals/{0}-uncalibrated-shape-catalogue.fits'.format(ptg_name))
 
   calibrate_supercals_catalogue(config, truth_cat_fname='/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla/truthcats/level2-jvla-indiv-{0}_truthcat.fits'.format(ptg_name))
 

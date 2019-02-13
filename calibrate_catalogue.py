@@ -81,7 +81,7 @@ def calibrate_supercals_catalogue(config, truth_cat_fname=None):
 
   valid_cat = cat[cat['Valid_supercals']]
 
-  make_cat_calibration_plots(valid_cat, base_dir=base_dir, name=base_dir[-3:])
+  make_cat_calibration_plots(valid_cat, base_dir=base_dir, name='')
 
   valid_cat_fname = cat_fname.rstrip('.fits') + '.supercals-calibrated.fits'
 
@@ -126,7 +126,9 @@ def calibrate_supercals_catalogue(config, truth_cat_fname=None):
     plt.subplot(121)
     plt.plot([-1,1],[0,0], 'k--', alpha=0.4)
     plt.plot(match_cat['e1'], match_cat['e1_calibrated_supercals']-match_cat['e1'], 'o')
-    plt.plot(match_cat['e1'], pybdsf_e1-match_cat['e1'], '+')
+    #plt.plot(match_cat['e1'], match_cat['e1_calibrated_supercals'], 'o')
+    #plt.plot(match_cat['e1'], pybdsf_e1-match_cat['e1'], '+')
+    plt.plot(match_cat['e1'], pybdsf_e1, '+')
     plt.xlabel('$e^{\\rm inp}_1$')
     plt.ylabel('$e^{\\rm meas}_1-e^{\\rm inp}_1$')
     plt.xlim([-1,1])
@@ -137,11 +139,13 @@ def calibrate_supercals_catalogue(config, truth_cat_fname=None):
     #plt.ylabel('$e^{\\rm meas}_2$')
     plt.xlim([-1,1])
     plt.ylim([-1,1])
-    plt.plot(match_cat['e2'], match_cat['e2_calibrated_supercals']-match_cat['e1'], 'o')
-    plt.suptitle(cat_fname.split('/')[2])
+    plt.plot(match_cat['e2'], match_cat['e2_calibrated_supercals']-match_cat['e2'], 'o')
+    #plt.plot(match_cat['e2'], match_cat['e2_calibrated_supercals'], 'o')
+    plt.plot(match_cat['e2'], pybdsf_e2, '+')
+    plt.suptitle(cat_fname.split('/')[-4])
     plt.savefig(base_dir+'/plots/ein-eout.png', dpi=300, bbox_inches='tight')
 
-    np.savetxt('/Users/harrison/Dropbox/code_mcr/supercals/{0}-ein-eout.txt'.format(base_dir[-3:]), np.column_stack([match_cat['e1'], match_cat['e1_calibrated_supercals'], match_cat['e1_uncalibrated_supercals'], pybdsf_e1, match_cat['radius_im3shape']]))
+    np.savetxt(base_dir+'/supercals/ein-eout.txt', np.column_stack([match_cat['e1'], match_cat['e1_calibrated_supercals'], match_cat['e1_uncalibrated_supercals'], pybdsf_e1, match_cat['radius_im3shape']]))
 
 
 if __name__=='__main__':
