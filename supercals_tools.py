@@ -1,5 +1,8 @@
 import pdb
-import configparser as ConfigParser
+try:
+  import configparser as ConfigParser
+except:
+  import ConfigParser
 import numpy as np
 import sys
 import os

@@ -17,12 +17,16 @@ from calibrate_catalogue import *
 from bias_surface import *
 
 pointing_dirs = [
-                 '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/1times-size/',
-                 '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/3times-size/',
-                 '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/5times-size/',
-                 '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/gaussian-1times-size/',
-                 '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/gaussian-3times-size/',
-                 '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/gaussian-5times-size/',
+                 #'/Users/harrison/Dropbox/code_mcr/superclass-im3shape/3times-size-5times-flux/',
+                 #'/Users/harrison/Dropbox/code_mcr/superclass-im3shape/3times-size-100times-flux/',
+                 #'/Users/harrison/Dropbox/code_mcr/superclass-im3shape/1times-size-1times-flux/',
+                 '/Users/harrison/Dropbox/code_mcr/superclass-im3shape/2times-size-2times-flux/',
+                 # '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/1times-size/',
+                 # '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/3times-size/',
+                 # '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/5times-size/',
+                 # '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/gaussian-1times-size/',
+                 # '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/gaussian-3times-size/',
+                 # '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/gaussian-5times-size/',
                  ]
 
 all_pointings_cat = Table()
@@ -33,15 +37,17 @@ for ptg in pointing_dirs:
 
   config = ConfigParser.ConfigParser()
 
-  ptg_name = (ptg.split('/')[-2]).replace('-size', '')
+  ptg_name = (ptg.split('/')[-2])
 
   config.add_section('catalogues')
   config.set('catalogues', 'base_dir', ptg)
-  config.set('catalogues', 'wl_catalogue', ptg+'/cats/J28.tclean.image.tt0_split_000.srl.resolved.fits')
+  #config.set('catalogues', 'wl_catalogue', ptg+'/cats/J28.tclean.image.tt0_split_000.srl.resolved.fits')
+  config.set('catalogues', 'wl_catalogue', '/Users/harrison/Dropbox/code_mcr/superclass-im3shape/level2-jvla-J28-{0}/cats/J28-{0}.tclean.image.tt0_split_000.srl.resolved.fits'.format(ptg_name))
   config.set('catalogues', 'supercals_directory', ptg+'/supercals/')
   config.set('catalogues', 'supercals_catalogue', ptg+'/supercals/{0}-uncalibrated-shape-catalogue.fits'.format(ptg_name))
-
-  calibrate_supercals_catalogue(config, truth_cat_fname='/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla/truthcats/level2-jvla-indiv-J28_truthcat.fits')
+  print('/Users/harrison/Dropbox/code_mcr/superclass-im3shape/level2-jvla-J28-{0}/cats/J28-{0}.tclean.image.tt0_split_000.srl.resolved.fits'.format(ptg_name))
+  #calibrate_supercals_catalogue(config, truth_cat_fname='/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla/truthcats/level2-jvla-indiv-J28_truthcat.fits')
+  calibrate_supercals_catalogue(config, doplots=True)
 
   #pointing_cat_fname = ptg+'/cats/{0}.tclean.image.tt0_split_000.srl.resolved.supercals-calibrated.fits'.format(ptg_name)
 

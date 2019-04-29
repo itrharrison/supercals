@@ -152,7 +152,7 @@ def runSuperCal(config):
   #dirty_psf_image_gs.wcs = galsim.wcs.UniformWCS()
   dirty_psf_image_gs += galsim.ImageF(dirty_psf_image)
   '''
-  residual_image_gs = galsim.ImageF(residual_image.shape[1], residual_image.shape[0], scale=pix_scale)
+  residual_image_gs = galsim.ImageF(residual_image.shape[1], residual_image.shape[0], scale=pix_scale/galsim.arcsec)
   residual_image_gs.wcs, origin = galsim.wcs.readFromFitsHeader(header_twod)
   residual_image_gs += galsim.ImageF(residual_image)
   '''
@@ -218,7 +218,7 @@ def runSuperCal(config):
     calibration_cat_fname = config.get('output', 'output_cat_dir')+'/{0}_supercals.fits'.format(source['Source_id'])
     calibration_output_cat = Table(names=calibration_output_columns, dtype=['S27']+(len(calibration_output_columns)-1)*[float])
     
-    options = Options(config.get('im3shape', 'ini_file'))
+    #options = Options(config.get('im3shape', 'ini_file'))
 
     print('######################################')
     print('{0}'.format(source['Source_id']))
@@ -226,8 +226,9 @@ def runSuperCal(config):
     print('RA: {0}, DEC: {1}'.format(source['RA'], source['DEC']))
     print('Flux: '+('%.3e' % source['Total_flux'])+' Jy')
     print('Size: {0} arcsec'.format(source['Maj']*galsim.degrees/galsim.arcsec))
-    print('Saving plots to:')
-    print(config.get('output', 'output_plot_dir')+'/{0}_mode_X_rot_X.png'.format(source['Source_id']))
+    if config.getboolean('ring', 'doplots'):
+      print('Saving plots to:')
+      print(config.get('output', 'output_plot_dir')+'/{0}_mode_X_rot_X.png'.format(source['Source_id']))
     print('######################################')
     print('e1_in\te1_out\t||\te2_in\te2_out')
     print('----------------||--------------------')
@@ -277,7 +278,7 @@ def runSuperCal(config):
           offset = galsim.PositionD(x-ix, y-iy)
           
           # Create the sub-image for this galaxy
-          stamp_size = get_stamp_size(source, pix_scale)/3.
+          stamp_size = int(get_stamp_size(source, pix_scale)/3.)
           options['stamp_size'] = stamp_size
           options['sersics_x0_start'] = stamp_size/2
           options['sersics_y0_start'] = stamp_size/2
@@ -363,7 +364,7 @@ def runSuperCal(config):
           if (g_i == 0) and (e_i == 0) and (o_i == 0):
             # also measure the actual shape in the clean image
             if config.get('input', 'measurement_method')=='im3shape':
-              options['save_images'] = 'YES'
+              #options['save_images'] = 'YES'
               options['output_directory'] = config.get('output', 'output_plot_dir')
               result, best_fit = analyze(clean_image[bounds].array, psf_stamp.array, options, weight=weight, ID=idx)
               result = process_im3shape_result(config, source, result, best_fit)
