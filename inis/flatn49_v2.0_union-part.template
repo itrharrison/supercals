@@ -3,13 +3,15 @@ install_directory=/home/zuntz/im3shape/
 ini_file=i3_options.ini
 
 [survey]
-wl_catalogue=/share/nas_mberc1/raid/harrison/supercals/catalog_flatn49_v2.0_union.masked.sfg.highflux.fits
+;wl_catalogue=/share/nas_mberc1/raid/harrison/supercals/catalog_flatn49_v2.0_union.masked.sfg.highflux.fits
+wl_catalogue=/share/nas_mberc1/raid/harrison/supercals/emerlin-jvla-sfg-highflux.fits
 pointing_root_directory=/share/nas_mberc2/raid/raw/BiggerMapTest/
 pointing_list={pointings}
 psf_mode=wsclean
 postfix=_restore_natw
 
 [input]
+catalogue=wl_catalogue=/share/nas_mberc1/raid/harrison/supercals/emerlin-jvla-sfg-highflux.fits
 measurement_method=im3shape
 catalogue_origin=pybdsm
 residual_image=
@@ -21,11 +23,11 @@ snr_cut=10.0
 [ring]
 one_source_debug=False
 n_shears=1
-n_orientations=4
+n_orientations=8
 n_ellipticities=5
-doplots=True
+doplots=False
 
 [output]
-output_plot_dir=/share/nas_mberc1/raid/harrison/supercals/
-output_cat_dir=/share/nas_mberc1/raid/harrison/supercals/
+output_plot_dir=/share/nas_mberc1/raid/harrison/supercals/emerlin-dr1/
+output_cat_dir=/share/nas_mberc1/raid/harrison/supercals/emerlin-dr1/
 do_ein_eout_plots=True
