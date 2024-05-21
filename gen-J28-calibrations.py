@@ -19,8 +19,8 @@ from bias_surface import *
 pointing_dirs = [
                  #'/Users/harrison/Dropbox/code_mcr/superclass-im3shape/3times-size-5times-flux/',
                  #'/Users/harrison/Dropbox/code_mcr/superclass-im3shape/3times-size-100times-flux/',
-                 #'/Users/harrison/Dropbox/code_mcr/superclass-im3shape/1times-size-1times-flux/',
-                 '/Users/harrison/Dropbox/code_mcr/superclass-im3shape/2times-size-2times-flux/',
+                 '/Users/harrison/Dropbox/code_mcr/superclass-im3shape/1times-size-1times-flux/',
+                 #'/Users/harrison/Dropbox/code_mcr/superclass-im3shape/2times-size-2times-flux/',
                  # '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/1times-size/',
                  # '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/3times-size/',
                  # '/Users/harrison/Dropbox/code_mcr/supercals/data/level2-jvla-J28/5times-size/',

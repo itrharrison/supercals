@@ -215,7 +215,7 @@ def runSuperCal(config):
 
     t_sourcestart = time.time()
     
-    calibration_cat_fname = config.get('output', 'output_cat_dir')+'/{0}_supercals.fits'.format(source['Source_id'])
+    calibration_cat_fname = config.get('output', 'output_cat_dir')+'/{0}_supercals.{1}-{2}.fits'.format(source['Source_id'], first_source, last_source)
     calibration_output_cat = Table(names=calibration_output_columns, dtype=['S27']+(len(calibration_output_columns)-1)*[float])
     
     #options = Options(config.get('im3shape', 'ini_file'))
