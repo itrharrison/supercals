@@ -124,22 +124,25 @@ def runSuperCal(config):
     print('...done')
     os.chdir(og_dir)
   '''
-  mosaic_image = fits.getdata(mosaic_fname)[0,0]
-  residual_image = fits.getdata(residual_fname)[0,0]
-  clean_image = fits.getdata(clean_fname)[0,0]
-  model_image = fits.getdata(model_fname)[0,0]
+  mosaic_image = fits.getdata(mosaic_fname)
+  residual_image = fits.getdata(residual_fname)
+  clean_image = fits.getdata(clean_fname)
+  model_image = fits.getdata(model_fname)
   clean_header = fits.getheader(clean_fname)
-  dirty_psf_image = fits.getdata(dirty_psf_fname)[0,0]
+  dirty_psf_image = fits.getdata(dirty_psf_fname)
   
   # set up wcs
   w_nd = wcs.WCS(config.get('input', 'clean_image'))
   if w_nd.naxis == 4:
     w_fourd = w_nd
     w_twod = w_fourd.dropaxis(3).dropaxis(2)
+    clean_image = clean_image[0,0]
+    residual_image = residual_image[0,0]
+    model_image = model_image[0,0]
   elif w_nd.naxis == 2:
     w_twod = w_nd
   else:
-    except('input clean_image is not either a 2 or 4 dim image')
+    raise Exception('input clean_image is not either a 2 or 4 dim image')
   header_twod = w_twod.to_header()
   image_size = clean_image.shape[0]
   pix_scale = np.abs(header_twod['CDELT1'])*galsim.degrees
@@ -148,10 +151,11 @@ def runSuperCal(config):
   if w_nd.naxis == 4:
     w_fourd_mosaic = w_nd_mosaic
     w_twod_mosaic = w_fourd_mosaic.dropaxis(3).dropaxis(2)
+    mosaic_image = mosaic_image[0,0]
   elif w_nd_mosaic.naxis == 2:
     w_twod_mosaic = w_nd_mosaic
   else:
-    except('input mosaic_image is not either a 2 or 4 dim image')
+    raise Exception('input mosaic_image is not either a 2 or 4 dim image')
   header_twod_mosaic = w_twod_mosaic.to_header()
   image_xsize_mosaic = mosaic_image.shape[0]
   image_ysize_mosaic = mosaic_image.shape[1]
