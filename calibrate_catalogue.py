@@ -5,6 +5,7 @@ import os
 import configparser
 from scipy.optimize import curve_fit
 from numpy.polynomial import polynomial as polyn
+import pickle
 
 from astropy.table import Table, hstack, Column
 
@@ -200,6 +201,18 @@ def calibrate_supercals_catalogue(config, truth_cat_fname=None, doplots=False):
       plt.suptitle(str(src['Source_id'])+'\n'+distances_string)
       plt.savefig(base_dir+'/{0}_cross_in_pointings.png'.format(str(src['Source_id'])), dpi=300, bbox_inches='tight')
 
+      cross_data = {'e1_uncaled' : calibration_cat['e1_obs'],
+                    'e2_uncaled' : calibration_cat['e2_obs'],
+                    'e1_caled' : e1_caled,
+                    'e2_caled' : e2_caled,
+                    'src_e1_uncaled' : supercals_src['e1_obs'],
+                    'src_e2_uncaled' : supercals_src['e2_obs'],
+                    'src_e1_caled' : src['e1_calibrated_iterative'],
+                    'src_e2_caled' : src['e2_calibrated_iterative']
+                    }
+
+      pickle.dump(cross_data, open(base_dir+'/{0}_cross_in_pointings.p'.format(str(src['Source_id'])), 'wb'))
+
   plt.close('all')
   plt.figure(1, figsize=(4.5, 3.75))
   plt.hist(cat['d_initial'], histtype='step', label='Initial', bins=25)
@@ -210,27 +223,34 @@ def calibrate_supercals_catalogue(config, truth_cat_fname=None, doplots=False):
   plt.xlabel('Calibration Cross Total Distance')
   plt.savefig(base_dir+'/cross_distances.png', bbox_inches='tight', dpi=300)
 
+  print(len(cat))
+  print(np.sum(cat['d_initial']>8))
+  print(np.sum(cat['d_moved']>8))
+  print(np.sum(cat['d_residual']>8))
+
+  #pdb.set_trace()
+
   badlist = []
 
   for src in cat:
     if src['Source_id'] in badlist:
       src['Valid_supercals'] = False
       print('Excluded on badlist')
-    if np.sqrt(src['e1_calibrated_supercals']**2. + src['e2_calibrated_supercals']**2.) > 1:
-      src['Valid_supercals'] = False
-      print('Excluded on |e|>1')
+    #if np.sqrt(src['e1_calibrated_supercals']**2. + src['e2_calibrated_supercals']**2.) > 1:
+    #  src['Valid_supercals'] = False
+    #  print('Excluded on |e|>1')
     if np.isnan(src['e1_calibrated_supercals']):
       src['Valid_supercals'] = False
       print('Excluded on nan')
-    if np.greater(src['d_initial'], 5):
+    if np.greater(src['d_residual'], 2.):
       src['Valid_supercals'] = False
       print('Excluded on cross failure')
 
   valid_cat = cat[cat['Valid_supercals']]
 
-  make_cat_calibration_plots(valid_cat, base_dir=base_dir, name=cat_fname.split('/')[-1].split('.')[0])
+  make_cat_calibration_plots(valid_cat, base_dir=base_dir)#, name=cat_fname.split('/')[-1].split('.')[0])
 
-  valid_cat_fname = base_dir+cat_fname.split('/')[-1].replace('.fits', '.supercals-calibrated.fits')
+  valid_cat_fname = base_dir+supercals_cat_fname.split('/')[-1].replace('.fits', '.supercals-calibrated.fits')
   print('Writing output catalogue to {0}'.format(valid_cat_fname))
   valid_cat.remove_columns(['e1_corrected', 'e2_corrected'])
   valid_cat.write(valid_cat_fname, overwrite=True)
@@ -292,10 +312,10 @@ def calibrate_supercals_catalogue(config, truth_cat_fname=None, doplots=False):
     plt.plot(match_cat['e2'], match_cat['e2_calibrated_supercals']-match_cat['e2'], 'o')
     #plt.plot(match_cat['e2'], match_cat['e2_calibrated_supercals'], 'o')
     plt.plot(match_cat['e2'], pybdsf_e2, '+')
-    plt.suptitle(cat_fname.split('/')[-4])
-    plt.savefig(base_dir+'/plots/ein-eout.png', dpi=300, bbox_inches='tight')
+    #plt.suptitle(cat_fname.split('/')[-4])
+    plt.savefig(base_dir+'/plots/{0}-ein-eout.png'.format(supercals_cat_fname), dpi=300, bbox_inches='tight')
 
-    np.savetxt(base_dir+'/supercals/ein-eout.txt', np.column_stack([match_cat['e1'], match_cat['e1_calibrated_supercals'], match_cat['e1_uncalibrated_supercals'], pybdsf_e1, match_cat['radius_im3shape']]))
+    np.savetxt(base_dir+'/supercals/{0}-ein-eout.txt'.format(supercals_cat_fname), np.column_stack([match_cat['e1'], match_cat['e1_calibrated_supercals'], match_cat['e1_uncalibrated_supercals'], pybdsf_e1, match_cat['radius_im3shape']]))
 
 
 if __name__=='__main__':

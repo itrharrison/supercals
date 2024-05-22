@@ -93,7 +93,7 @@ def make_cat_calibration_plots(cat, base_dir='./', name=''):
   plt.xlim([-1,1])
   plt.ylim([-1,1])
   plt.yticks([-1,-0.5,0,0.5,1])
-  plt.suptitle(name)
+  plt.suptitle(name.replace('_', ' '))
   plt.savefig(base_dir+'/plots/e_cal-e_uncal-{0}.png'.format(name), dpi=300, bbox_inches='tight')
 
   plt.figure(2, figsize=(2*4.5, 3.75))
@@ -110,7 +110,7 @@ def make_cat_calibration_plots(cat, base_dir='./', name=''):
   plt.hist(pa_uncal, histtype='step', label='Uncalibrated')
   plt.hist(pa_cal, histtype='step', label='Calibrated')
   plt.xlabel('PA [rad]')
-  plt.suptitle(name)
+  plt.suptitle(name.replace('_', ' '))
   plt.savefig(base_dir+'/plots/mode-pa-{0}.png'.format(name), dpi=300, bbox_inches='tight')
 
   plt.figure(3, figsize=(2*4.5, 3.75))
@@ -127,5 +127,5 @@ def make_cat_calibration_plots(cat, base_dir='./', name=''):
   plt.xlim([-1,1])
   plt.axvline(0, linestyle='dashed', color='k')#, alpha=0.4)
   plt.xlabel('$e_{2}$')
-  plt.suptitle(name)
+  plt.suptitle(name.replace('_', ' '))
   plt.savefig(base_dir+'/plots/e1_e2-{0}.png'.format(name), dpi=300, bbox_inches='tight')
