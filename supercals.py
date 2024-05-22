@@ -132,14 +132,26 @@ def runSuperCal(config):
   dirty_psf_image = fits.getdata(dirty_psf_fname)[0,0]
   
   # set up wcs
-  w_fourd = wcs.WCS(config.get('input', 'clean_image'))
-  w_twod = w_fourd.dropaxis(3).dropaxis(2)
+  w_nd = wcs.WCS(config.get('input', 'clean_image'))
+  if w_nd.naxis == 4:
+    w_fourd = w_nd
+    w_twod = w_fourd.dropaxis(3).dropaxis(2)
+  elif w_nd.naxis == 2:
+    w_twod = w_nd
+  else:
+    except('input clean_image is not either a 2 or 4 dim image')
   header_twod = w_twod.to_header()
   image_size = clean_image.shape[0]
   pix_scale = np.abs(header_twod['CDELT1'])*galsim.degrees
 
-  w_fourd_mosaic = wcs.WCS(mosaic_fname)
-  w_twod_mosaic = w_fourd_mosaic.dropaxis(3).dropaxis(2)
+  w_nd_mosaic = wcs.WCS(mosaic_fname)
+  if w_nd.naxis == 4:
+    w_fourd_mosaic = w_nd_mosaic
+    w_twod_mosaic = w_fourd_mosaic.dropaxis(3).dropaxis(2)
+  elif w_nd_mosaic.naxis == 2:
+    w_twod_mosaic = w_nd_mosaic
+  else:
+    except('input mosaic_image is not either a 2 or 4 dim image')
   header_twod_mosaic = w_twod_mosaic.to_header()
   image_xsize_mosaic = mosaic_image.shape[0]
   image_ysize_mosaic = mosaic_image.shape[1]
