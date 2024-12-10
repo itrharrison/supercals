@@ -63,7 +63,7 @@ def make_source_plot(config, bounds, mosaic_image_array, clean_image, residual_i
   add_source_subplot(grid, 6, nplots, clean_psf_stamp.array, 'CLEAN PSF', global_norm=source_peak)
   add_source_subplot(grid, 7, nplots, dirty_psf_stamp, 'Dirty PSF', global_norm=source_peak)
   add_source_subplot(grid, 8, nplots, model_image_stamp, 'CLEAN Comps.\nN={0}\n{1:.2e}'.format(np.sum(model_image_stamp!=0), np.sum(model_image_stamp)))
-  os.system('echo \'{0},{1:.3f},{2:.2e},{3},{4:.2e}\' >> /home/harrison/offsets.txt'.format(source['Source_id'], offset_dist, np.sqrt(np.var(residual_image[bounds].array)), np.sum(model_image_stamp!=0), np.sum(model_image_stamp)))
+  # os.system('echo \'{0},{1:.3f},{2:.2e},{3},{4:.2e}\' >> /home/harrison/offsets.txt'.format(source['Source_id'], offset_dist, np.sqrt(np.var(residual_image[bounds].array)), np.sum(model_image_stamp!=0), np.sum(model_image_stamp)))
   #plt.suptitle('{0} \n {1}'.format(config.get('input', 'clean_image').split('/')[-1], source['Source_id']), size=3)
   plt.savefig(config.get('output', 'output_plot_dir')+'/{0}_mode_{1}_rot_{2}.png'.format(source['Source_id'], mod_e, theta), dpi=300, bbox_inches='tight')
 
