@@ -103,7 +103,7 @@ def calibrate_supercals_catalogue(config, truth_cat_fname=None, doplots=False):
       supercals_src = supercals_src[0]
 
 
-    calibration_cat_fname = supercals_dir+'/{0}_supercals.fits'.format(src['Source_id'])
+    calibration_cat_fname = supercals_dir+'/{0}_supercals.0-350.fits'.format(src['Source_id'])
     try:
       calibration_cat = Table.read(calibration_cat_fname)
     except FileNotFoundError:
@@ -212,7 +212,7 @@ def calibrate_supercals_catalogue(config, truth_cat_fname=None, doplots=False):
                     }
 
       pickle.dump(cross_data, open(base_dir+'/{0}_cross_in_pointings.p'.format(str(src['Source_id'])), 'wb'))
-
+  '''
   plt.close('all')
   plt.figure(1, figsize=(4.5, 3.75))
   plt.hist(cat['d_initial'], histtype='step', label='Initial', bins=25)
@@ -227,7 +227,7 @@ def calibrate_supercals_catalogue(config, truth_cat_fname=None, doplots=False):
   print(np.sum(cat['d_initial']>8))
   print(np.sum(cat['d_moved']>8))
   print(np.sum(cat['d_residual']>8))
-
+  '''
   #pdb.set_trace()
 
   badlist = []
@@ -248,7 +248,7 @@ def calibrate_supercals_catalogue(config, truth_cat_fname=None, doplots=False):
 
   valid_cat = cat[cat['Valid_supercals']]
 
-  make_cat_calibration_plots(valid_cat, base_dir=base_dir)#, name=cat_fname.split('/')[-1].split('.')[0])
+  #make_cat_calibration_plots(valid_cat, base_dir=base_dir)#, name=cat_fname.split('/')[-1].split('.')[0])
 
   valid_cat_fname = base_dir+supercals_cat_fname.split('/')[-1].replace('.fits', '.supercals-calibrated.fits')
   print('Writing output catalogue to {0}'.format(valid_cat_fname))

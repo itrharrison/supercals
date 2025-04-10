@@ -180,9 +180,14 @@ def runSuperCal(config):
 
   # get the beam information
   clean_image_header = fits.getheader(clean_fname)
-  bmaj = clean_image_header['BMAJ']*galsim.degrees
-  bmin = clean_image_header['BMIN']*galsim.degrees
-  bpa = clean_image_header['BPA']*galsim.degrees - 90*galsim.degrees
+  try:
+    bmaj = clean_image_header['BMAJ']*galsim.degrees
+    bmin = clean_image_header['BMIN']*galsim.degrees
+    bpa = clean_image_header['BPA']*galsim.degrees - 90*galsim.degrees
+  except KeyError:
+    bmaj = config.getfloat('input', 'psf_bmaj')*galsim.degrees
+    bmin = config.getfloat('input', 'psf_bmin')*galsim.degrees
+    bpa = config.getfloat('input', 'psf_bpa')*galsim.degrees
   
   if (config.get('survey', 'psf_mode')=='wsclean'):
     psf_q = (bmin/galsim.degrees)/(bmaj/galsim.degrees)
